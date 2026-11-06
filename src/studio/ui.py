@@ -224,6 +224,7 @@ class App:
             "errors": plan.errors,
             "warnings": list(plan.warnings),
             "clips": [], "audio": [], "text": [], "images": [], "captions": [],
+            "doc": edl,   # raw document: the page edits this and saves it back whole
         }
         for c in plan.clips:
             item = {
@@ -236,6 +237,8 @@ class App:
                 "has_audio": bool(c.info.get("has_audio")) and c.kind == "video",
                 "mute": bool(c.clip.get("mute")), "volume": c.clip.get("volume", 1),
                 "entry": c.clip,
+                "width": c.info.get("width"), "height": c.info.get("height"),
+                "src_fps": c.info.get("fps"), "src_duration": c.info.get("duration"),
             }
             if c.kind == "video":
                 item["in"] = c.src_in
@@ -761,6 +764,21 @@ def make_handler(app: App):
                     return self._json({"job": jid})
                 if u.path == "/api/edl/append":
                     return self._json(app.append(self._body_json()))
+                if u.path == "/api/edl/save":
+                    # whole-document save from the page's editor; refuses if the file changed meanwhile
+                    b = self._body_json()
+                    p = app.edl_path(b.get("edl"))
+                    doc = b.get("doc")
+                    if not isinstance(doc, dict) or not isinstance(doc.get("clips", []), list):
+                        raise ValueError("invalid EDL document")
+                    with app._edl_lock:
+                        cur = p.stat().st_mtime
+                        if b.get("base_mtime") is not None and abs(cur - float(b["base_mtime"])) > 1e-6:
+                            return self._json({"error": "conflict", "edl_mtime": cur}, 409)
+                        tmp = p.with_name(p.name + ".tmp")
+                        tmp.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n")
+                        tmp.replace(p)
+                    return self._json({"edl_mtime": p.stat().st_mtime})
                 if u.path == "/api/export":
                     return self._json({"job": app.export(self._body_json())})
                 if u.path == "/api/reveal":

@@ -90,3 +90,42 @@ main > * { min-width: 0; }
   .tl-wrap { height: 34vh; }
   .screen { min-height: 120px; }
 }
+
+/* ---------- editing (edit.js) ---------- */
+.tl-sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
+.blk .hdl { position: absolute; top: 0; bottom: 0; width: 7px; z-index: 3; cursor: ew-resize; }
+.blk .hdl.l { left: 0; } .blk .hdl.r { right: 0; }
+.blk:hover .hdl, .blk.sel .hdl { background: #ffffff38; }
+.blk .hdl:hover { background: var(--accent) !important; }
+.blk.dragging { opacity: .85; z-index: 9; box-shadow: 0 4px 16px #000a; cursor: grabbing; }
+.f-acts { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 10px; }
+.f-acts button, button.small { padding: 2px 8px; font-size: 12px; }
+.f-sec { border-top: 1px solid var(--line); padding: 6px 0; }
+.f-sec summary { cursor: pointer; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 2px 0 6px; }
+.f-row { display: grid; grid-template-columns: 96px 1fr; gap: 6px; align-items: center; margin-bottom: 5px; }
+.f-row > label { color: var(--muted); font-size: 12px; }
+.f-row input[type=number], .f-row input[type=text], .f-row select, .f-row textarea {
+  width: 100%; min-width: 0; background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px; color: var(--text); font: inherit; font-size: 12px; }
+.f-row textarea { resize: vertical; }
+.f-row.f-check input { justify-self: start; }
+.f-range { display: grid; grid-template-columns: 1fr 58px; gap: 6px; align-items: center; }
+.f-range input[type=range] { width: 100%; accent-color: var(--accent); }
+.f-time { display: grid; grid-template-columns: 1fr auto auto auto; gap: 3px; }
+.f-time button { padding: 2px 5px; }
+.f-color { display: grid; grid-template-columns: 30px 1fr; gap: 6px; }
+.f-color input[type=color] { width: 30px; height: 24px; padding: 0; border: 1px solid var(--line); border-radius: 5px; background: none; }
+.f-crop { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; font-size: 12px; }
+#frame { display: none !important; }
+canvas.live { display: block; box-shadow: 0 0 0 1px #ffffff14; }
+.cropui { position: absolute; inset: 0; display: flex; flex-direction: column; background: #000; z-index: 4; }
+.crop-stage { position: relative; flex: 1; min-height: 0; }
+.screen .crop-stage img { position: absolute; max-width: none; max-height: none; opacity: .55; }
+.cropbox { position: absolute; border: 2px solid var(--accent); box-shadow: 0 0 0 9999px #0009; cursor: move; touch-action: none;
+  background-image: linear-gradient(#ffffff30 1px, transparent 1px), linear-gradient(90deg, #ffffff30 1px, transparent 1px);
+  background-size: 33.333% 33.333%; background-position: -1px -1px; }
+.cropbox .ch { position: absolute; width: 14px; height: 14px; background: var(--accent); border-radius: 2px; }
+.ch.nw { left: -8px; top: -8px; cursor: nwse-resize; } .ch.ne { right: -8px; top: -8px; cursor: nesw-resize; }
+.ch.sw { left: -8px; bottom: -8px; cursor: nesw-resize; } .ch.se { right: -8px; bottom: -8px; cursor: nwse-resize; }
+.crop-bar { display: flex; gap: 8px; align-items: center; padding: 6px 10px; background: var(--panel); border-top: 1px solid var(--line); flex-wrap: wrap; }
+.crop-bar label { color: var(--muted); font-size: 12px; }
+.crop-val { color: var(--muted); font-size: 12px; }
