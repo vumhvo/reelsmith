@@ -377,15 +377,70 @@ class Actions:
     """Import, timeline edits and export, mixed into App."""
 
     # -- media library -----------------------------------------------------------
+    def media_usage(self: App) -> dict[str, list[str]]:
+        """media id -> EDL files that reference it (by id or by path)."""
+        media = self.ws.media()
+        by_path = {self.ws.abs(m["path"]).resolve(): mid for mid, m in media.items()}
+        used: dict[str, list[str]] = {}
+        for p in self.edls():
+            try:
+                e = edlmod.load(p)
+            except Exception:
+                continue
+            for x in (x for k in ("clips", "audio", "images") for x in (e.get(k) or [])):
+                src = x.get("src")
+                if not src:
+                    continue
+                mid = src if src in media else by_path.get(self.ws.abs(src).resolve())
+                if mid and p.name not in used.setdefault(mid, []):
+                    used[mid].append(p.name)
+        return used
+
     def media_list(self: App) -> list[dict]:
-        res = []
+        res, used = [], self.media_usage()
         for mid, m in self.ws.media().items():
             adir = self.ws.state / "analysis" / mid
             res.append({"id": mid, **{k: m.get(k) for k in ("type", "duration", "width", "height", "fps",
                                                              "has_audio", "path")},
                         "analyzed": adir.exists() and any(adir.iterdir()),
-                        "transcript": (adir / "transcript.json").exists()})
+                        "transcript": (adir / "transcript.json").exists(),
+                        "used_in": used.get(mid, []),
+                        "in_workspace": self.ws.root in self.ws.abs(m["path"]).resolve().parents})
         return res
+
+    def remove_media(self: App, mid: str, trash_file: bool) -> dict:
+        """Drop a source from the library; optionally move its file to the Trash (workspace files only).
+
+        Refuses while an EDL still uses it, so no edit is left pointing at a missing source.
+        Files outside the workspace (imported "in place") are never touched."""
+        import shutil
+
+        with self._media_lock:
+            media = self.ws.media()
+            if mid not in media:
+                raise LookupError(f"unknown media '{mid}'")
+            used = self.media_usage().get(mid)
+            if used:
+                raise ValueError(f"'{mid}' is still used in {', '.join(used)}: remove those clips first")
+            path = self.ws.abs(media[mid]["path"]).resolve()
+            trashed = None
+            if trash_file:
+                if self.ws.root not in path.parents:
+                    raise PermissionError("only files inside the workspace can be moved to the Trash")
+                if path.exists():
+                    trash = Path.home() / ".Trash" if sys.platform == "darwin" else self.ws.state / "trash"
+                    trash.mkdir(parents=True, exist_ok=True)
+                    dest, n = trash / path.name, 2
+                    while dest.exists():
+                        dest, n = trash / f"{path.stem} {n}{path.suffix}", n + 1
+                    shutil.move(str(path), str(dest))
+                    trashed = str(dest)
+            del media[mid]
+            self.ws.save_media(media)
+            for d in (self.ws.state / "analysis" / mid,):
+                shutil.rmtree(d, ignore_errors=True)   # derived data only; re-created by ingest
+            self.ws.proxy_path(mid).unlink(missing_ok=True)
+        return {"removed": mid, "trashed": trashed}
 
     def upload_target(self: App, filename: str) -> Path:
         name = re.sub(r"[^\w.\- ]+", "_", Path(filename).name).strip(" .") or "media"
@@ -764,6 +819,9 @@ def make_handler(app: App):
                     return self._json({"job": jid})
                 if u.path == "/api/edl/append":
                     return self._json(app.append(self._body_json()))
+                if u.path == "/api/media/remove":
+                    b = self._body_json()
+                    return self._json(app.remove_media(b["id"], bool(b.get("trash_file"))))
                 if u.path == "/api/edl/save":
                     # whole-document save from the page's editor; refuses if the file changed meanwhile
                     b = self._body_json()

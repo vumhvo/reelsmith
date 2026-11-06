@@ -97,10 +97,54 @@ function renderLib() {
     const add = el("button", "madd", "+");
     add.title = m.type === "audio" ? T("addAudio") : T("addClip");
     add.onclick = (e) => { e.stopPropagation(); addMedia(m, null, null, m.type === "audio" ? "audio" : "clip"); };
-    it.append(th, info, add);
+    const del = el("button", "madd mdel", "🗑");
+    del.title = T("rmTitle");
+    del.onclick = (e) => { e.stopPropagation(); askRemove(m); };
+    const btns = el("div", "mbtns"); btns.append(add, del);
+    it.append(th, info, btns);
     it.onclick = () => openSource(m);
     return it;
   }));
+}
+
+/* ---------- removing from the library ---------- */
+Object.assign(I18N.en, {
+  rmTitle: "Remove from library", rmUsed: "“{id}” is used in {edls}. Delete or replace those clips on the timeline first.",
+  rmAsk: "Remove “{id}” from the library?", rmKeep: "Remove from library (keep the file)", rmTrash: "Remove and move the file to the Trash",
+  rmOutside: "The file is outside the workspace ({path}); it is never deleted from here.", rmDone: "Removed {id}", rmTrashed: "Moved to the Trash: {path}",
+});
+Object.assign(I18N.vi, {
+  rmTitle: "Gỡ khỏi thư viện", rmUsed: "“{id}” đang được dùng trong {edls}. Hãy xoá hoặc thay các clip đó trên timeline trước.",
+  rmAsk: "Gỡ “{id}” khỏi thư viện?", rmKeep: "Gỡ khỏi thư viện (giữ file)", rmTrash: "Gỡ và chuyển file vào Thùng rác",
+  rmOutside: "File nằm ngoài workspace ({path}); trang này không bao giờ xoá nó.", rmDone: "Đã gỡ {id}", rmTrashed: "Đã chuyển vào Thùng rác: {path}",
+});
+const rmDlg = el("dialog");
+rmDlg.innerHTML = `<div class="dlg"><h2></h2><p class="note"></p><div class="acts rm-acts"></div></div>`;
+document.body.append(rmDlg);
+function askRemove(m) {
+  const acts = rmDlg.querySelector(".rm-acts"), note = rmDlg.querySelector(".note");
+  const btn = (txt, cls, fn) => { const b = el("button", cls, txt); b.type = "button"; b.onclick = fn; return b; };
+  acts.replaceChildren();
+  if (m.used_in?.length) {
+    rmDlg.querySelector("h2").textContent = T("rmTitle");
+    note.textContent = T("rmUsed", { id: m.id, edls: m.used_in.join(", ") });
+    acts.append(btn("OK", "primary", () => rmDlg.close()));
+  } else {
+    rmDlg.querySelector("h2").textContent = T("rmAsk", { id: m.id });
+    note.textContent = m.in_workspace ? m.path : T("rmOutside", { path: m.path });
+    acts.append(btn(T("cancel"), "", () => rmDlg.close()), btn(T("rmKeep"), m.in_workspace ? "" : "primary", () => doRemove(m, false)));
+    if (m.in_workspace) acts.append(btn(T("rmTrash"), "danger", () => doRemove(m, true)));
+  }
+  rmDlg.showModal();
+}
+async function doRemove(m, trash) {
+  try {
+    const r = await getJSON("/api/media/remove", { method: "POST", body: JSON.stringify({ id: m.id, trash_file: trash }) });
+    rmDlg.close();
+    if (E.src?.id === m.id) closeSource();
+    toast(r.trashed ? T("rmTrashed", { path: r.trashed }) : T("rmDone", { id: m.id }));
+    loadMedia();
+  } catch (e) { toast(e.message); }
 }
 
 /* ---------- adding to the timeline ---------- */

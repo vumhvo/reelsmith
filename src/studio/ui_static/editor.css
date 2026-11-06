@@ -20,6 +20,11 @@ aside.library { border-left: 0; border-right: 1px solid var(--line); background:
 .mmeta { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .madd { opacity: 0; padding: 2px 7px; font-weight: 700; }
 .mitem:hover .madd, .mitem.on .madd { opacity: 1; }
+.mbtns { display: flex; gap: 3px; }
+.mdel { font-weight: 400; font-size: 11px; }
+.mdel:hover { border-color: var(--err) !important; }
+button.danger { background: #ff6b6b26; border-color: #ff6b6b80; color: #ffc2c2; }
+button.danger:hover:not(:disabled) { background: #ff6b6b40; border-color: var(--err); }
 .spin { display: inline-block; width: 9px; height: 9px; border: 2px solid var(--accent); border-right-color: transparent; border-radius: 50%; animation: rot .8s linear infinite; vertical-align: -1px; }
 @keyframes rot { to { transform: rotate(360deg); } }
 
