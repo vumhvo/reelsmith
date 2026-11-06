@@ -134,3 +134,17 @@ canvas.live { display: block; box-shadow: 0 0 0 1px #ffffff14; }
 .crop-bar { display: flex; gap: 8px; align-items: center; padding: 6px 10px; background: var(--panel); border-top: 1px solid var(--line); flex-wrap: wrap; }
 .crop-bar label { color: var(--muted); font-size: 12px; }
 .crop-val { color: var(--muted); font-size: 12px; }
+
+/* ---------- right-click menus (menu.js) ---------- */
+.ctxmenu { position: fixed; z-index: 100; min-width: 230px; max-width: 340px; background: var(--panel-2); border: 1px solid #3a3f47;
+  border-radius: 8px; padding: 4px; box-shadow: 0 12px 32px #000b; display: flex; flex-direction: column; }
+.ctxmenu[hidden] { display: none; }
+.ctxmenu .mi { display: flex; justify-content: space-between; align-items: center; gap: 18px; background: none; border: 0; border-radius: 5px;
+  padding: 5px 10px; text-align: left; width: 100%; font-size: 13px; }
+.ctxmenu .mi:hover:not(:disabled), .ctxmenu .mi:focus-visible { background: #3a3f47; outline: none; }
+.ctxmenu .mi:disabled { opacity: .4; }
+.ctxmenu .mi.danger { color: #ffb3b3; }
+.ctxmenu .mi kbd { color: var(--muted); }
+.ctxmenu .mi kbd:empty { display: none; }
+.ctxmenu .sep { height: 1px; background: var(--line); margin: 4px 2px; }
+.ctxmenu .mtitle { font-size: 11px; color: var(--muted); padding: 4px 10px 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

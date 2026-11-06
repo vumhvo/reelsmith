@@ -102,6 +102,7 @@ function renderLib() {
     del.onclick = (e) => { e.stopPropagation(); askRemove(m); };
     const btns = el("div", "mbtns"); btns.append(add, del);
     it.append(th, info, btns);
+    it.dataset.id = m.id;
     it.onclick = () => openSource(m);
     return it;
   }));

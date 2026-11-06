@@ -609,6 +609,20 @@ class Actions:
                 mix.unlink(missing_ok=True)
                 return {"path": self.ws.rel(out), "size": out.stat().st_size}
             label = f"{name}.{afmt}"
+        elif kind == "frame":
+            # one exact frame with every effect (crop, grade, text, captions): render a sliver, keep frame 1
+            t = float(body.get("t", 0))
+
+            def run(report):
+                plan = load_plan(edlmod.load(p))
+                a = max(0.0, min(t, plan.duration - 0.05))
+                clip = self.ws.state / "render" / f"{name}-frame.mp4"
+                self.render_with_progress(plan, clip, (a, min(plan.duration, a + 0.2)), report)
+                out = self.ws.root / "renders" / f"{name}-frame-{a:.2f}s.png"
+                ff.ffmpeg(["-i", clip, "-frames:v", "1", out])
+                clip.unlink(missing_ok=True)
+                return {"path": self.ws.rel(out), "size": out.stat().st_size}
+            label = f"{name} frame {t:.2f}s.png"
         elif kind == "srt":
             def run(report):
                 plan = load_plan(edlmod.load(p))
@@ -840,7 +854,8 @@ def make_handler(app: App):
                 if u.path == "/api/export":
                     return self._json({"job": app.export(self._body_json())})
                 if u.path == "/api/reveal":
-                    f = app.render_file(self._body_json()["path"])
+                    b = self._body_json()
+                    f = app.allowed_src(b["id"]) if b.get("id") else app.render_file(b["path"])
                     if sys.platform == "darwin":
                         subprocess.run(["open", "-R", str(f)])
                     else:
