@@ -148,3 +148,11 @@ canvas.live { display: block; box-shadow: 0 0 0 1px #ffffff14; }
 .ctxmenu .mi kbd:empty { display: none; }
 .ctxmenu .sep { height: 1px; background: var(--line); margin: 4px 2px; }
 .ctxmenu .mtitle { font-size: 11px; color: var(--muted); padding: 4px 10px 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- monitor tabs: Timeline / Source ---------- */
+.viewer { grid-template-rows: auto minmax(0, 1fr) auto auto; }
+.montabs { display: flex; gap: 4px; padding: 5px 8px 0; background: var(--panel); border-bottom: 1px solid var(--line); overflow-x: auto; }
+.montabs button { border-radius: 6px 6px 0 0; border-bottom: 0; padding: 4px 12px; font-size: 12px; white-space: nowrap; color: var(--muted); background: transparent; }
+.montabs button.on { background: #000; color: var(--accent); border-color: var(--line); }
+.montabs .x { margin-left: 8px; opacity: .6; padding: 0 2px; border-radius: 3px; }
+.montabs .x:hover { opacity: 1; background: #ffffff20; }

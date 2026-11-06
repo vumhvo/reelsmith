@@ -123,7 +123,7 @@ function menuFor(e) {
   if (blk) { const [type, i] = blk.dataset.sel.split(":"); return blockMenu(type, +i, timeAt(e, blk.closest(".lane"))); }
   const lane = e.target.closest(".tl-inner .lane");
   if (lane) return laneMenu(timeAt(e, lane));
-  if (e.target.closest("#screen")) return E.src ? sourceMenu() : viewerMenu();
+  if (e.target.closest("#screen")) return E.srcActive ? sourceMenu() : viewerMenu();
   if (e.target.closest(".tl-scroll")) return laneMenu(S.t);
   return null;
 }

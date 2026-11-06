@@ -78,7 +78,7 @@ function renderLib() {
     return;
   }
   list.replaceChildren(...items.map((m) => {
-    const it = el("div", "mitem" + (E.src?.id === m.id ? " on" : ""));
+    const it = el("div", "mitem" + (E.srcActive && E.src?.id === m.id ? " on" : ""));
     const th = el("div", "mthumb");
     if (m.type === "video" || m.type === "image") {
       const img = el("img"); img.loading = "lazy"; img.alt = "";
@@ -177,10 +177,49 @@ const sVid = $("#srcVid"), sImg = $("#srcImg");
 $("#sIn").textContent = T("setIn"); $("#sOut").textContent = T("setOut");
 $("#sAdd").textContent = T("addClip"); $("#sAudio").textContent = T("addAudio"); $("#sClose").title = T("close") + " (Esc)";
 
+/* Two monitors, like an NLE: "Timeline" (program: preview render / live view) and "Source" (an
+   imported file). Switching tabs keeps the source loaded; touching the timeline switches back. */
+Object.assign(I18N.en, { tabTimeline: "Timeline", tabSource: "Source: {id}" });
+Object.assign(I18N.vi, { tabTimeline: "Timeline", tabSource: "Nguồn: {id}" });
+const monTabs = el("div", "montabs");
+viewer.prepend(monTabs);
+function renderMonTabs() {
+  const tTl = el("button", E.srcActive ? "" : "on", "▦ " + T("tabTimeline"));
+  tTl.onclick = showProgram;
+  const tabs = [tTl];
+  if (E.src) {
+    const tSrc = el("button", E.srcActive ? "on" : "", (ICON[E.src.type] || "") + " " + T("tabSource", { id: E.src.id }));
+    tSrc.onclick = showSource;
+    const x = el("span", "x", "✕");
+    x.title = T("close");
+    x.onclick = (e) => { e.stopPropagation(); closeSource(); };
+    tSrc.append(x);
+    tabs.push(tSrc);
+  }
+  monTabs.replaceChildren(...tabs);
+}
+function setSrcActive(on) {
+  E.srcActive = on;
+  screen.classList.toggle("srcmode", on); viewer.classList.toggle("srcmode", on);
+  if (!on) {
+    sVid.pause();
+    renderViewer(false);
+    setTime(S.t, { force: true });   // re-sync the preview video / redraw the live view
+  }
+  renderMonTabs(); renderLib();
+}
+function showProgram() { if (E.srcActive) setSrcActive(false); }
+function showSource() { if (E.src && !E.srcActive) { pause(); setSrcActive(true); } }
+$("#scroll").addEventListener("pointerdown", showProgram, true);   // any timeline interaction
+$("#edlSel").addEventListener("change", showProgram);
+const _setView = setView;
+setView = function (v) { showProgram(); _setView(v); };
+renderMonTabs();
+
 function openSource(m) {
   pause();
   E.src = m; E.sIn = 0; E.sOut = m.duration || 0;
-  screen.classList.add("srcmode"); viewer.classList.add("srcmode");
+  setSrcActive(true);
   $("#srcLabel").textContent = `${m.id}  ·  ${m.path}`;
   const isImg = m.type === "image";
   sImg.hidden = !isImg; sVid.hidden = isImg;
@@ -196,8 +235,7 @@ function openSource(m) {
 function closeSource() {
   sVid.pause(); sVid.removeAttribute("src"); sVid.load();
   E.src = null;
-  screen.classList.remove("srcmode"); viewer.classList.remove("srcmode");
-  renderLib();
+  setSrcActive(false);
 }
 const sDur = () => E.src?.duration || sVid.duration || 0;
 const sFps = () => E.src?.fps || 30;
@@ -233,7 +271,7 @@ $("#scrub").addEventListener("pointerdown", (e) => {
   sc.addEventListener("pointerup", () => sc.removeEventListener("pointermove", go), { once: true });
 });
 document.addEventListener("keydown", (e) => {  // capture phase: wins over the timeline keys while the source monitor is open
-  if (!E.src || e.target.matches("input, select, textarea") || e.metaKey || e.ctrlKey || e.altKey || document.querySelector("dialog[open]")) return;
+  if (!E.srcActive || e.target.matches("input, select, textarea") || e.metaKey || e.ctrlKey || e.altKey || document.querySelector("dialog[open]")) return;
   const k = e.key, handled = () => { e.preventDefault(); e.stopPropagation(); };
   if (k === "Escape") { handled(); closeSource(); }
   else if (E.src.type === "image") { if (k === "Enter") { handled(); $("#sAdd").click(); } }

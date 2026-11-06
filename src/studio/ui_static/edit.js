@@ -233,7 +233,7 @@ function syncHistoryButtons() { bUndo.disabled = !H.undo.length; bRedo.disabled 
 syncHistoryButtons();
 
 document.addEventListener("keydown", (e) => {
-  if (e.target.matches("input, select, textarea") || document.querySelector("dialog[open]") || E.src || cropState) return;
+  if (e.target.matches("input, select, textarea") || document.querySelector("dialog[open]") || E.srcActive || cropState) return;
   const k = e.key.toLowerCase(), mod = e.metaKey || e.ctrlKey;
   if (mod && k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if (mod && k === "y") { e.preventDefault(); redo(); return; }
