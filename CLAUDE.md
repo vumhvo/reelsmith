@@ -9,6 +9,7 @@ A toolkit that lets Claude edit **any** video: `cstudio` CLI (Python, `src/studi
 - `edl.py`: EDL loading, presets, validation, timeline placement (`Plan`). `render.py`: EDL → one ffmpeg `filter_complex`.
 - `layer.py`: text/images/captions rasterized with Pillow into a concat-demuxer overlay stream (Homebrew ffmpeg has no drawtext/libass).
 - `captions.py`: remaps source-time transcripts onto the timeline (cuts, speed, transitions). `review.py`: QA of renders.
+- `ui.py` + `ui_static/index.html`: `cstudio ui`, a stdlib HTTP server (Range support for seeking) and a vanilla-JS timeline page; polls the EDL mtime and auto-renders the preview.
 
 ## Conventions
 - Clip `in`/`out` are source seconds; everything else is timeline seconds.

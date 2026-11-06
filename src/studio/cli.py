@@ -194,6 +194,16 @@ def cmd_review(a):
     _print(reviewmod.review(path, sheet, expected_duration=expected, target_lufs=target, dark_ok=dark))
 
 
+def cmd_ui(a):
+    from . import ui
+
+    edl = Path(a.edl).resolve() if a.edl else None
+    if edl and not edl.exists():
+        raise SystemExit(f"EDL not found: {a.edl}")
+    ws = Workspace.find(edl.parent if edl else None)
+    ui.serve(ws, edl, port=a.port, open_browser=not a.no_open, auto_render=not a.no_render)
+
+
 # -- parser -----------------------------------------------------------------------
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="cstudio", description="Reelsmith video toolkit")
@@ -270,6 +280,13 @@ def main(argv=None):
     s.add_argument("--range", help="only render START:END seconds of the timeline")
     s.add_argument("--dry-run", action="store_true", help="write the ffmpeg command without running it")
     s.set_defaults(fn=cmd_render)
+
+    s = sub.add_parser("ui", help="open the timeline of an EDL in the browser (localhost)")
+    s.add_argument("edl", nargs="?", help="EDL to show (default: the newest in edits/; switchable in the page)")
+    s.add_argument("--port", type=int, default=8765)
+    s.add_argument("--no-open", action="store_true", help="do not open a browser window")
+    s.add_argument("--no-render", action="store_true", help="do not auto-render the preview when the EDL changes")
+    s.set_defaults(fn=cmd_ui)
 
     s = sub.add_parser("review", help="QA a rendered video: loudness, black frames, silence, contact sheet")
     s.add_argument("video")

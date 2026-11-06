@@ -51,6 +51,8 @@ cstudio review renders/main-preview.mp4 --edl edits/main.edl.json
 ```
 `review` reports loudness, unexpected black frames, long silences, duration mismatch, and writes `<name>_review.jpg`: **read that sheet** and check framing, text legibility and placement (nothing covered by platform UI), and pacing. Fix the EDL and re-render. Use `--range 10:20` to re-render only a section while tweaking.
 
+When the user wants to *see* the edit, start `cstudio ui edits/main.edl.json` in the background (it prints the URL, default http://localhost:8765; add `--no-open` if you open it yourself in a browser pane). The page shows the timeline (clips with thumbnails, transitions, clip audio with silences, music, text, captions), plays the preview, steps frame by frame, and shows source frames at full detail. It picks up every EDL save within a second and re-renders the preview by itself (`--no-render` to disable), so keep editing the EDL as usual and tell the user to watch the page.
+
 ## 5. Final
 
 ```bash

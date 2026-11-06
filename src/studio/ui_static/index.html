@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reelsmith Timeline</title>
+<style>
+:root {
+  --bg: #121316; --panel: #1a1c20; --panel-2: #22252b; --line: #2e3238; --text: #e6e8eb;
+  --muted: #8b919a; --accent: #ffcf3f; --play: #ff4d4d;
+  --video: #3b6fd8; --image: #7a5bd6;
+  --textc: #c9822b; --imgc: #b0508f; --capc: #6d7a8c; --err: #ff6b6b; --warn: #f3b33d; --ok: #46c37b;
+  --label-w: 74px;
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-size: 13px; }
+body { display: grid; grid-template-rows: auto minmax(180px, 1fr) auto; height: 100vh; overflow: hidden; }
+button, select, input { font: inherit; color: inherit; }
+button { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: #4a5058; }
+button:disabled { opacity: .45; cursor: default; }
+select { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; max-width: 220px; }
+.mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+
+/* header */
+header { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.brand { font-weight: 700; letter-spacing: .02em; }
+.brand span { color: var(--accent); }
+.meta { color: var(--muted); }
+.spacer { flex: 1; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); cursor: default; }
+.pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.pill.ok { color: var(--ok); } .pill.run { color: var(--accent); } .pill.stale { color: var(--warn); } .pill.err { color: var(--err); cursor: pointer; }
+.pill.run::before { animation: blink 1s infinite; }
+@keyframes blink { 50% { opacity: .2; } }
+
+/* middle: viewer + inspector */
+main { display: grid; grid-template-columns: 1fr 320px; min-height: 0; }
+.viewer { display: grid; grid-template-rows: 1fr auto; min-height: 0; min-width: 0; }
+.screen { position: relative; min-height: 0; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.screen video, .screen img { max-width: 100%; max-height: 100%; display: block; }
+.screen .badge { position: absolute; top: 8px; left: 8px; padding: 2px 8px; border-radius: 4px; background: #000a; color: var(--warn); font-size: 12px; }
+.screen .empty { color: var(--muted); text-align: center; padding: 20px; line-height: 1.6; }
+.transport { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--panel); border-top: 1px solid var(--line); flex-wrap: wrap; }
+.tc { font-size: 15px; min-width: 190px; }
+.tc small { color: var(--muted); font-size: 12px; }
+.clipinfo { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; }
+.seg button.on { background: #3a3f47; color: var(--accent); }
+aside { border-left: 1px solid var(--line); background: var(--panel); overflow: auto; padding: 10px 12px; min-height: 0; }
+aside h3 { margin: 4px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.msg { padding: 6px 8px; border-radius: 6px; margin-bottom: 6px; line-height: 1.4; word-break: break-word; }
+.msg.err { background: #ff6b6b1f; color: #ffb3b3; } .msg.warn { background: #f3b33d1a; color: #f6d48f; }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0 0 10px; }
+dt { color: var(--muted); } dd { margin: 0; }
+pre { margin: 0; padding: 8px; background: var(--bg); border-radius: 6px; overflow: auto; font-size: 12px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.k { color: #8fc1ff; } .s { color: #b6e3a0; } .n { color: #f6c27a; }
+.hint { color: var(--muted); line-height: 1.7; }
+kbd { background: var(--panel-2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font-size: 11px; }
+
+/* timeline */
+.tl-wrap { background: var(--panel); border-top: 1px solid var(--line); display: flex; flex-direction: column; height: 42vh; min-height: 170px; }
+.tl-tools { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--line); }
+.tl-tools input[type=range] { width: 160px; }
+.tl-scroll { position: relative; overflow: auto; flex: 1; }
+.tl-inner { position: relative; min-width: 100%; }
+.row { display: flex; position: relative; border-bottom: 1px solid #ffffff0a; }
+.row-label { position: sticky; left: 0; z-index: 6; width: var(--label-w); flex: none; background: var(--panel); border-right: 1px solid var(--line); color: var(--muted); font-size: 11px; padding: 4px 6px; display: flex; align-items: center; }
+.lane { position: relative; flex: none; cursor: text; }
+.ruler { position: sticky; top: 0; z-index: 7; background: var(--panel); border-bottom: 1px solid var(--line); }
+.ruler .lane { height: 24px; cursor: ew-resize; }
+.tick { position: absolute; bottom: 0; border-left: 1px solid #ffffff30; height: 6px; pointer-events: none; }
+.tick.major { height: 11px; border-color: #ffffff60; }
+.tick span { position: absolute; left: 3px; bottom: 9px; font-size: 10px; color: var(--muted); white-space: nowrap; }
+.blk { position: absolute; top: 3px; bottom: 3px; border-radius: 5px; overflow: hidden; cursor: pointer; border: 1px solid #ffffff22; color: #fff; }
+.blk:hover { border-color: #ffffff70; }
+.blk.sel { outline: 2px solid var(--accent); outline-offset: -1px; z-index: 2; }
+.blk .lbl { position: absolute; left: 4px; top: 2px; right: 4px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000; pointer-events: none; z-index: 2; }
+.blk .sub { position: absolute; left: 4px; bottom: 2px; right: 4px; font-size: 10px; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000; pointer-events: none; z-index: 2; }
+.blk.video { background: var(--video); } .blk.image { background: var(--image); }
+.blk.audio { background: #2fa36b33; border-color: #2fa36b66; } .blk.audio.muted { background: #ffffff10; border-color: #ffffff20; }
+.blk.music { background: #1f8a8a33; border-color: #1f8a8a77; }
+.blk.text { background: var(--textc); } .blk.imgov { background: var(--imgc); } .blk.cap { background: var(--capc); }
+.thumbs { position: absolute; inset: 0; display: flex; pointer-events: none; }
+.thumbs img { height: 100%; width: 80px; flex: none; object-fit: cover; opacity: .9; border-right: 1px solid #0006; }
+.blk canvas { position: absolute; left: 0; top: 0; height: 100%; pointer-events: none; }
+.trans { position: absolute; top: 0; bottom: 0; left: 0; z-index: 1; pointer-events: none;
+  background: repeating-linear-gradient(135deg, #ffffff40 0 4px, transparent 4px 9px), linear-gradient(90deg, #000a, transparent); border-right: 1px dashed #fff8; }
+.sil { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(90deg, #00000070 0 2px, transparent 2px 5px); pointer-events: none; }
+.playhead { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid var(--play); z-index: 5; pointer-events: none; }
+.playhead::before { content: ""; position: absolute; top: 0; left: -7px; border: 6px solid transparent; border-top: 8px solid var(--play); }
+.banner { padding: 6px 12px; background: #ff6b6b22; color: #ffc2c2; border-bottom: 1px solid var(--line); }
+
+@media (max-width: 760px) {
+  main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  aside { border-left: 0; border-top: 1px solid var(--line); max-height: 28vh; }
+  .tc { min-width: 0; }
+  :root { --label-w: 56px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Reel<span>smith</span></div>
+  <select id="edlSel" title="EDL"></select>
+  <div class="meta mono" id="meta"></div>
+  <div class="spacer"></div>
+  <div class="pill" id="pill">…</div>
+  <button id="renderBtn"></button>
+</header>
+
+<main>
+  <section class="viewer">
+    <div class="screen" id="screen">
+      <video id="vid" playsinline preload="auto" hidden></video>
+      <img id="frame" alt="" hidden>
+      <div class="badge" id="badge" hidden></div>
+      <div class="empty" id="empty" hidden></div>
+    </div>
+    <div class="transport">
+      <button id="bStart" title="Home">⏮</button>
+      <button id="bPrev" title="←">◀︎|</button>
+      <button id="bPlay" title="Space">▶</button>
+      <button id="bNext" title="→">|▶︎</button>
+      <div class="tc mono" id="tc"></div>
+      <div class="seg" id="viewSeg">
+        <button data-v="preview"></button><button data-v="source"></button>
+      </div>
+      <div class="clipinfo mono" id="clipinfo"></div>
+    </div>
+  </section>
+  <aside id="inspector"></aside>
+</main>
+
+<section class="tl-wrap">
+  <div id="banner" class="banner" hidden></div>
+  <div class="tl-tools">
+    <span class="meta" id="zoomLbl"></span>
+    <input type="range" id="zoom" min="0" max="1000" value="400">
+    <button id="fitBtn"></button>
+  </div>
+  <div class="tl-scroll" id="scroll"><div class="tl-inner" id="inner"></div></div>
+</section>
+
+<script>
+"use strict";
+const I18N = {
+  en: {
+    render: "Render preview", rendering: "Rendering preview… {s}s", ok: "Preview up to date", stale: "Preview out of date",
+    none: "No preview yet", err: "Render failed (click)", preview: "Preview", source: "Source frame",
+    fit: "Fit", zoom: "Zoom", clip: "Clip", text: "Text", images: "Images", captions: "Captions", video: "Video",
+    clipAudio: "Clip audio", audio: "Audio", src: "src", frame: "frame",
+    noPreview: "No preview render yet.<br>It renders automatically, or press <b>Render preview</b>.<br>Switch to <b>Source frame</b> to inspect frames now.",
+    staleBadge: "preview is older than the EDL", sourceBadge: "source frame, no overlays",
+    out: "Source", dur: "Duration", tlRange: "Timeline", errors: "Problems",
+    selectHint: "Click any block to inspect it. Edits to the EDL (by Claude or by hand) show up here within a second.",
+    keys: "<kbd>Space</kbd> play · <kbd>←</kbd><kbd>→</kbd> 1 frame · <kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd> 1 s · <kbd>Home</kbd>/<kbd>End</kbd> · <kbd>+</kbd>/<kbd>−</kbd> zoom (or Ctrl/⌘+wheel) · <kbd>S</kbd> preview/source",
+    noEdl: "No EDL found. Create one in <code>edits/</code> (ask Claude), it will appear here.",
+    loop: "loop", muted: "muted", renderMsg: "Last render error",
+  },
+  vi: {
+    render: "Render bản xem", rendering: "Đang render… {s}s", ok: "Bản xem đã mới nhất", stale: "Bản xem đã cũ",
+    none: "Chưa có bản xem", err: "Render lỗi (bấm để xem)", preview: "Bản xem", source: "Khung nguồn",
+    fit: "Vừa khung", zoom: "Thu phóng", clip: "Clip", text: "Chữ", images: "Ảnh", captions: "Phụ đề", video: "Video",
+    clipAudio: "Tiếng clip", audio: "Âm thanh", src: "nguồn", frame: "frame",
+    noPreview: "Chưa có bản render xem trước.<br>Bản xem sẽ tự render, hoặc bấm <b>Render bản xem</b>.<br>Chuyển sang <b>Khung nguồn</b> để xem từng frame ngay.",
+    staleBadge: "bản xem cũ hơn EDL", sourceBadge: "khung nguồn, chưa có lớp phủ",
+    out: "Nguồn", dur: "Thời lượng", tlRange: "Timeline", errors: "Vấn đề",
+    selectHint: "Bấm vào một khối để xem chi tiết. Khi EDL thay đổi (Claude hoặc bạn sửa), timeline cập nhật trong khoảng 1 giây.",
+    keys: "<kbd>Space</kbd> phát · <kbd>←</kbd><kbd>→</kbd> 1 frame · <kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd> 1 giây · <kbd>Home</kbd>/<kbd>End</kbd> · <kbd>+</kbd>/<kbd>−</kbd> thu phóng (hoặc Ctrl/⌘+cuộn) · <kbd>S</kbd> bản xem/nguồn",
+    noEdl: "Chưa có EDL nào. Tạo một file trong <code>edits/</code> (nhờ Claude), nó sẽ hiện ở đây.",
+    loop: "lặp", muted: "tắt tiếng", renderMsg: "Lỗi render gần nhất",
+  },
+};
+const LANG = (new URLSearchParams(location.search).get("lang") || navigator.language || "en").toLowerCase().startsWith("vi") ? "vi" : "en";
+const T = (k, vars) => (I18N[LANG][k] ?? I18N.en[k] ?? k).replace(/\{(\w+)\}/g, (_, v) => vars?.[v] ?? "");
+document.documentElement.lang = LANG;
+
+const $ = (s) => document.querySelector(s);
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+const enc = encodeURIComponent;
+const LABEL_W = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--label-w")) || 74;
+function store(k, v) { try { if (v === undefined) return localStorage.getItem("reelsmith." + k); localStorage.setItem("reelsmith." + k, v); } catch { return null; } }
+
+const S = {
+  edl: new URLSearchParams(location.search).get("edl"),
+  tl: null, ver: null, pps: 40, fitted: false, t: 0, playing: false,
+  view: store("view") || "preview", selected: null, peaks: {}, previewKey: null,
+};
+
+function fmt(t) {
+  t = Math.max(0, t || 0);
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+  return (h ? `${h}:${String(m).padStart(2, "0")}` : `${m}`) + `:${s.toFixed(2).padStart(5, "0")}`;
+}
+const fps = () => S.tl?.output?.fps || 30;
+const dur = () => S.tl?.duration || 0;
+const q = () => (S.edl ? `edl=${enc(S.edl)}` : "");
+
+async function getJSON(url, opts) {
+  const r = await fetch(url, opts);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+/* ---------- loading ---------- */
+async function loadEdls() {
+  try {
+    const list = await getJSON("/api/edls");
+    const sel = $("#edlSel");
+    sel.replaceChildren(...list.map((e) => { const o = el("option", null, e.name); o.value = e.name; return o; }));
+    if (!S.edl && list.length) S.edl = list[0].name;
+    sel.value = S.edl || "";
+    sel.hidden = list.length === 0;
+    return list;
+  } catch { return []; }
+}
+
+async function loadTimeline() {
+  let tl;
+  try { tl = await getJSON(`/api/timeline?${q()}`); }
+  catch (e) { showBanner(e.message.includes("no EDL") ? T("noEdl") : e.message); return; }
+  S.tl = tl;
+  S.ver = { edl_mtime: tl.edl_mtime, preview_mtime: tl.preview_mtime, preview_stale: tl.preview_stale, render: tl.render };
+  if (!S.fitted && tl.duration) { fitZoom(); S.fitted = true; }
+  S.t = Math.min(S.t, Math.max(0, dur() - 1 / fps()));
+  if (S.selected && !findSelected()) S.selected = null;
+  renderAll();
+}
+
+function renderAll() {
+  const tl = S.tl, o = tl.output || {};
+  $("#meta").textContent = `${o.width}×${o.height} · ${o.fps} fps · ${fmt(tl.duration)}`;
+  document.title = `${tl.name} · Reelsmith`;
+  showBanner(tl.errors?.length ? tl.errors.map(escapeHtml).join(" · ") : null);
+  renderStatus();
+  renderTimeline();
+  renderViewer(true);
+  renderInspector();
+  setTime(S.t, { force: true });
+}
+const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function showBanner(html) {
+  const b = $("#banner");
+  b.hidden = !html;
+  if (html) b.innerHTML = html;
+}
+
+/* ---------- status / render ---------- */
+function renderStatus() {
+  const v = S.ver || {}, r = v.render || {}, pill = $("#pill");
+  let cls = "ok", txt = T("ok");
+  if (r.state === "running") { cls = "run"; txt = T("rendering", { s: Math.max(0, Math.round(Date.now() / 1000 - r.started)) }); }
+  else if (r.state === "error" && v.preview_stale) { cls = "err"; txt = T("err"); }
+  else if (!v.preview_mtime) { cls = "stale"; txt = T("none"); }
+  else if (v.preview_stale) { cls = "stale"; txt = T("stale"); }
+  pill.className = "pill " + cls;
+  pill.textContent = txt;
+  pill.title = r.state === "error" ? r.message || "" : "";
+  $("#renderBtn").disabled = r.state === "running" || !!S.tl?.errors?.length;
+}
+$("#pill").onclick = () => { if (S.ver?.render?.state === "error") { S.selected = { type: "render" }; renderInspector(); } };
+$("#renderBtn").onclick = async () => {
+  try { const r = await getJSON(`/api/render?${q()}`, { method: "POST" }); S.ver.render = r; renderStatus(); }
+  catch (e) { showBanner(escapeHtml(e.message)); }
+};
+
+/* ---------- viewer ---------- */
+const vid = $("#vid"), frame = $("#frame");
+const previewUrl = () => `/media/preview?${q()}&v=${S.ver?.preview_mtime || 0}`;
+
+function renderViewer(reloadVideo) {
+  const hasPreview = !!S.ver?.preview_mtime;
+  const showVideo = S.view === "preview" && hasPreview;
+  document.querySelectorAll("#viewSeg button").forEach((b) => b.classList.toggle("on", b.dataset.v === S.view));
+  vid.hidden = !showVideo;
+  frame.hidden = S.view !== "source";
+  $("#empty").hidden = !(S.view === "preview" && !hasPreview);
+  $("#empty").innerHTML = T("noPreview");
+  const badge = $("#badge");
+  badge.hidden = true;
+  badge.style.color = "";
+  if (showVideo && S.ver.preview_stale) { badge.hidden = false; badge.textContent = T("staleBadge"); }
+  if (S.view === "source") { badge.hidden = false; badge.textContent = T("sourceBadge"); badge.style.color = "var(--muted)"; }
+  if (showVideo) {
+    const key = previewUrl();
+    if (reloadVideo && S.previewKey !== key) {
+      const wasPlaying = S.playing;
+      S.previewKey = key;
+      vid.src = key;
+      vid.addEventListener("loadedmetadata", () => { vid.currentTime = S.t; if (wasPlaying) vid.play(); }, { once: true });
+    }
+  } else if (!vid.paused) vid.pause();
+  $("#bPlay").disabled = !showVideo;
+}
+
+let frameTimer = null, frameWanted = null;
+function updateSourceFrame() {
+  if (S.view !== "source" || !S.tl) return;
+  const c = clipAt(S.t);
+  if (!c || c.kind === "color") {
+    frame.removeAttribute("src"); delete frame.dataset.want;
+    frame.style.background = c?.color || "#000";
+    frame.style.height = "70%"; frame.style.aspectRatio = `${S.tl.output.width}/${S.tl.output.height}`;
+    return;
+  }
+  frame.style.background = ""; frame.style.height = ""; frame.style.aspectRatio = "";
+  frameWanted = `/api/thumb?src=${enc(c.src)}&t=${srcTime(c, S.t).toFixed(3)}&h=720`;
+  if (frameTimer) return;
+  const go = () => {
+    frameTimer = null;
+    if (frame.dataset.want !== frameWanted) { frame.dataset.want = frameWanted; frame.src = frameWanted; frameTimer = setTimeout(go, 90); }
+  };
+  go();
+}
+
+document.querySelectorAll("#viewSeg button").forEach((b) => {
+  b.textContent = T(b.dataset.v);
+  b.onclick = () => setView(b.dataset.v);
+});
+function setView(v) { S.view = v; store("view", v); if (v === "source") pause(); renderViewer(true); setTime(S.t, { force: true }); }
+
+function play() {
+  if (vid.hidden) return;
+  if (S.t >= dur() - 0.05) setTime(0);
+  vid.currentTime = S.t;
+  vid.play(); S.playing = true; $("#bPlay").textContent = "❚❚";
+  requestAnimationFrame(tick);
+}
+function pause() { vid.pause(); S.playing = false; $("#bPlay").textContent = "▶"; }
+function tick() {
+  if (!S.playing) return;
+  setTime(vid.currentTime, { fromVideo: true });
+  if (vid.ended) pause();
+  else requestAnimationFrame(tick);
+}
+vid.addEventListener("pause", () => { if (S.playing) pause(); });
+
+/* ---------- time ---------- */
+function clipAt(t) {
+  const cs = S.tl?.clips || [];
+  let hit = null;
+  for (const c of cs) if (t >= c.start && t < c.end) hit = c;  // the later clip wins during a transition
+  return hit || (cs.length && t >= dur() ? cs[cs.length - 1] : null);
+}
+const srcTime = (c, t) => (c.kind === "video" ? c.in + (t - c.start) * c.speed : 0);
+
+function setTime(t, { fromVideo = false, force = false } = {}) {
+  const d = dur();
+  t = Math.max(0, Math.min(t, Math.max(0, d - 0.001)));
+  const changed = force || Math.abs(t - S.t) > 1e-6;
+  S.t = t;
+  if (!fromVideo && !vid.hidden && vid.readyState >= 1 && Math.abs(vid.currentTime - t) > 1e-3) vid.currentTime = t;
+  $("#tc").innerHTML = `${fmt(t)} <small>/ ${fmt(d)} · ${T("frame")} ${Math.floor(t * fps() + 1e-6)}</small>`;
+  const ph = document.querySelector(".playhead");
+  if (ph) { ph.style.left = LABEL_W() + t * S.pps + "px"; if (S.playing) keepVisible(t); }
+  const c = clipAt(t);
+  let info = "";
+  if (c) {
+    info = `#${c.index} · ${c.label}`;
+    if (c.kind === "video") {
+      const st = srcTime(c, t);
+      info += ` · ${T("src")} ${st.toFixed(2)}s (${T("frame")} ${Math.floor(st * fps())})` + (c.speed !== 1 ? ` · ${c.speed}×` : "");
+    }
+  }
+  $("#clipinfo").textContent = info;
+  if (changed) updateSourceFrame();
+}
+
+function keepVisible(t) {
+  const sc = $("#scroll"), x = t * S.pps, viewW = sc.clientWidth - LABEL_W();
+  if (x < sc.scrollLeft || x > sc.scrollLeft + viewW - 40) sc.scrollLeft = Math.max(0, x - viewW * 0.2);
+}
+function step(frames) { pause(); setTime((Math.floor(S.t * fps() + 1e-6) + frames) / fps() + 1e-4); keepVisible(S.t); }
+function jump(t) { pause(); setTime(t); keepVisible(S.t); }
+$("#bPlay").onclick = () => (S.playing ? pause() : play());
+$("#bPrev").onclick = () => step(-1);
+$("#bNext").onclick = () => step(1);
+$("#bStart").onclick = () => jump(0);
+
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("input, select, textarea") || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === " ") { e.preventDefault(); S.playing ? pause() : play(); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); e.shiftKey ? jump(S.t - 1) : step(-1); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); e.shiftKey ? jump(S.t + 1) : step(1); }
+  else if (e.key === "Home") jump(0);
+  else if (e.key === "End") jump(dur());
+  else if (e.key === "+" || e.key === "=") setZoom(S.pps * 1.25);
+  else if (e.key === "-" || e.key === "_") setZoom(S.pps * 0.8);
+  else if (e.key === "s" || e.key === "S") setView(S.view === "preview" ? "source" : "preview");
+});
+
+/* ---------- zoom ---------- */
+const PPS_MIN = 2, PPS_MAX = 600;
+const ppsToSlider = (p) => Math.round((1000 * Math.log(p / PPS_MIN)) / Math.log(PPS_MAX / PPS_MIN));
+const sliderToPps = (v) => PPS_MIN * Math.pow(PPS_MAX / PPS_MIN, v / 1000);
+function setZoom(pps, anchorX) {
+  const sc = $("#scroll");
+  const ax = anchorX ?? Math.max(0, Math.min(sc.clientWidth - LABEL_W(), S.t * S.pps - sc.scrollLeft));
+  const at = (sc.scrollLeft + ax) / S.pps;
+  S.pps = Math.max(PPS_MIN, Math.min(PPS_MAX, pps));
+  $("#zoom").value = ppsToSlider(S.pps);
+  renderTimeline();
+  sc.scrollLeft = Math.max(0, at * S.pps - ax);
+}
+function fitZoom() {
+  const w = $("#scroll").clientWidth - LABEL_W() - 24;
+  if (dur() > 0) { S.pps = Math.max(PPS_MIN, Math.min(PPS_MAX, w / dur())); $("#zoom").value = ppsToSlider(S.pps); }
+}
+$("#zoom").oninput = (e) => setZoom(sliderToPps(+e.target.value));
+$("#fitBtn").onclick = () => { fitZoom(); renderTimeline(); $("#scroll").scrollLeft = 0; };
+$("#scroll").addEventListener("wheel", (e) => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  e.preventDefault();
+  const r = $("#scroll").getBoundingClientRect();
+  setZoom(S.pps * Math.exp(-e.deltaY * 0.0025), e.clientX - r.left - LABEL_W());
+}, { passive: false });
+
+/* ---------- timeline ---------- */
+function lanes(items) {  // greedy lane assignment for overlapping blocks
+  const ends = [];
+  return items.map((it) => {
+    let l = ends.findIndex((e) => e <= it.start + 1e-6);
+    if (l < 0) { l = ends.length; ends.push(0); }
+    ends[l] = it.end;
+    return l;
+  });
+}
+const isSel = (sel) => S.selected && S.selected.type === sel.type && S.selected.index === sel.index;
+
+function renderTimeline() {
+  const tl = S.tl, inner = $("#inner");
+  if (!tl) return;
+  const lw = LABEL_W(), pps = S.pps, W = Math.max(dur() * pps + 40, $("#scroll").clientWidth - lw);
+  inner.replaceChildren();
+  inner.style.width = lw + W + "px";
+  $("#zoomLbl").textContent = T("zoom");
+  $("#fitBtn").textContent = T("fit");
+
+  const row = (label, h, cls) => {
+    const r = el("div", "row " + (cls || ""));
+    const lane = el("div", "lane");
+    lane.style.width = W + "px";
+    lane.style.height = h + "px";
+    r.append(el("div", "row-label", label), lane);
+    inner.append(r);
+    return lane;
+  };
+  const block = (lane, it, cls, label, sub, sel) => {
+    const b = el("div", "blk " + cls);
+    b.style.left = it.start * pps + "px";
+    b.style.width = Math.max(2, (it.end - it.start) * pps) + "px";
+    if (label != null) b.append(el("div", "lbl", label));
+    if (sub) b.append(el("div", "sub", sub));
+    b.title = (label || "") + (sub ? "\n" + sub : "");
+    b.dataset.sel = `${sel.type}:${sel.index}`;
+    if (isSel(sel)) b.classList.add("sel");
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      S.selected = sel;
+      renderInspector();
+      document.querySelectorAll(".blk.sel").forEach((x) => x.classList.remove("sel"));
+      document.querySelectorAll(`.blk[data-sel="${sel.type}:${sel.index}"]`).forEach((x) => x.classList.add("sel"));
+      pause();
+      seekFromEvent(e, lane);
+    });
+    lane.append(b);
+    return b;
+  };
+
+  // ruler
+  const rl = row("", 24, "ruler");
+  const steps = [0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
+  const major = steps.find((s) => s * pps >= 70) || 600;
+  const minor = major / 5;
+  for (let k = 0; k * minor <= dur() + major; k++) {
+    const t = k * minor, isMajor = k % 5 === 0;
+    const tk = el("div", "tick" + (isMajor ? " major" : ""));
+    tk.style.left = t * pps + "px";
+    if (isMajor) tk.append(el("span", null, major < 1 ? fmt(t) : fmt(t).replace(/\.00$/, "")));
+    rl.append(tk);
+  }
+  rl.addEventListener("pointerdown", (e) => {
+    rl.setPointerCapture(e.pointerId); pause(); seekFromEvent(e, rl);
+    const mv = (ev) => seekFromEvent(ev, rl);
+    rl.addEventListener("pointermove", mv);
+    rl.addEventListener("pointerup", () => rl.removeEventListener("pointermove", mv), { once: true });
+  });
+
+  // overlay tracks (text, images, captions): one lane per overlap level
+  const laneRows = (items, label, cls, type, labelFn) => {
+    if (!items.length) return;
+    const ls = lanes(items), n = Math.max(...ls) + 1;
+    const lane = row(label, 24 * n);
+    items.forEach((it, i) => {
+      const b = block(lane, it, cls, labelFn(it), null, { type, index: it.index ?? i });
+      b.style.top = 3 + ls[i] * 24 + "px"; b.style.bottom = "auto"; b.style.height = "18px";
+      b.querySelector(".lbl").style.top = "1px";
+    });
+  };
+  laneRows(tl.text || [], T("text"), "text", "text", (it) => it.label.replace(/\n/g, " ⏎ "));
+  laneRows(tl.images || [], T("images"), "imgov", "images", (it) => it.label);
+  laneRows((tl.captions || []).map((c, i) => ({ ...c, index: i })), T("captions"), "cap", "captions", (c) => c.text);
+
+  // video track
+  const vlane = row("V1 " + T("video"), 58);
+  for (const c of tl.clips) {
+    let sub = c.kind === "video" ? `${c.in.toFixed(2)} → ${c.out.toFixed(2)}s` : `${(c.end - c.start).toFixed(2)}s`;
+    if (c.speed !== 1) sub += ` · ${c.speed}×`;
+    const b = block(vlane, c, c.kind === "color" ? "color" : c.kind, `#${c.index} ${c.label}`, sub, { type: "clip", index: c.index });
+    if (c.kind === "color") b.style.background = c.color;
+    const wpx = (c.end - c.start) * pps;
+    if (c.kind !== "color" && c.src) {
+      const th = el("div", "thumbs");
+      const cell = 80, n = Math.min(400, Math.max(1, Math.ceil(wpx / cell)));
+      for (let i = 0; i < n; i++) {
+        const tt = c.start + Math.min(c.end - c.start - 0.01, ((i + 0.5) * cell) / pps);
+        const st = c.kind === "video" ? Math.round(srcTime(c, tt) * 4) / 4 : 0;
+        const img = el("img");
+        img.loading = "lazy"; img.decoding = "async"; img.alt = "";
+        img.src = `/api/thumb?src=${enc(c.src)}&t=${st}&h=104`;
+        th.append(img);
+      }
+      b.prepend(th);
+    }
+    if (c.transition > 0) {
+      const tr = el("div", "trans");
+      tr.style.width = c.transition * pps + "px";
+      tr.title = `${c.transition_type} ${c.transition}s`;
+      b.append(tr);
+    }
+  }
+
+  // the clips' own audio
+  if (tl.clips.some((c) => c.has_audio)) {
+    const alane = row("A1 " + T("clipAudio"), 40);
+    for (const c of tl.clips) {
+      if (!c.has_audio) continue;
+      const b = block(alane, c, "audio" + (c.mute ? " muted" : ""), null, null, { type: "clip", index: c.index });
+      b.title = `#${c.index} ${c.label}` + (c.mute ? ` (${T("muted")})` : "");
+      for (const [a, z] of c.silences || []) {
+        const s = el("div", "sil");
+        s.style.left = (a - c.start) * pps + "px"; s.style.width = (z - a) * pps + "px";
+        b.append(s);
+      }
+      waveInto(b, c.src, (dt) => c.in + dt * c.speed, c.end - c.start, c.speed, c.mute ? "#ffffff40" : "#5fd49a", c.mute ? 1 : (c.volume ?? 1));
+    }
+  }
+
+  // extra audio tracks (music, voice-over, sfx)
+  (tl.audio || []).forEach((a, k) => {
+    const lane = row(`A${k + 2} ${T("audio")}`, 40);
+    const len = Math.max(0.01, a.out - a.in);
+    const label = a.label + (a.loop ? ` · ${T("loop")}` : "") + (a.volume !== 1 ? ` · vol ${a.volume}` : "");
+    const b = block(lane, a, "music", label, null, { type: "audio", index: a.index });
+    waveInto(b, a.src, (dt) => a.in + (a.loop ? dt % len : dt), a.end - a.start, 1, "#5cc8c8", Math.min(1, a.volume ?? 1) * 0.9 + 0.1);
+  });
+
+  inner.append(el("div", "playhead"));
+  inner.querySelectorAll(".row:not(.ruler) .lane").forEach((lane) => lane.addEventListener("click", (e) => { pause(); seekFromEvent(e, lane); }));
+  setTime(S.t);
+}
+
+function seekFromEvent(e, lane) {
+  const r = lane.getBoundingClientRect();
+  setTime((e.clientX - r.left) / S.pps);
+}
+
+/* ---------- waveforms ---------- */
+function getPeaks(src) {
+  if (!S.peaks[src]) S.peaks[src] = fetch(`/api/peaks?src=${enc(src)}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  return S.peaks[src];
+}
+function waveInto(block, src, map, len, speed, color, gain) {
+  const wpx = len * S.pps;
+  const cv = el("canvas");
+  const cw = Math.max(1, Math.min(Math.ceil(wpx), 8000));
+  cv.style.width = wpx + "px";
+  block.prepend(cv);
+  getPeaks(src).then((pk) => {
+    if (!pk || !cv.isConnected) return;
+    const dpr = window.devicePixelRatio || 1, h = block.clientHeight || 34;
+    cv.width = cw * dpr; cv.height = h * dpr;
+    const g = cv.getContext("2d");
+    g.scale(dpr, dpr);
+    g.fillStyle = color;
+    const sx = wpx / cw, rate = pk.rate, P = pk.peaks, mid = h / 2;
+    const span = Math.max(1, Math.ceil((sx / S.pps) * speed * rate));
+    for (let x = 0; x < cw; x++) {
+      const i = Math.floor(map((x * sx) / S.pps) * rate);
+      let v = 0;
+      for (let j = i; j < i + span && j < P.length; j++) if (P[j] > v) v = P[j];
+      const y = Math.max(0.5, Math.sqrt(v / 255) * mid * 0.95 * Math.min(1.6, Math.sqrt(gain)));
+      g.fillRect(x, mid - y, 1, y * 2);
+    }
+  });
+}
+
+/* ---------- inspector ---------- */
+function findSelected() {
+  const s = S.selected, tl = S.tl;
+  if (!s || !tl) return null;
+  if (s.type === "render") return { render: true };
+  if (s.type === "clip") return tl.clips.find((c) => c.index === s.index);
+  if (s.type === "audio") return tl.audio.find((a) => a.index === s.index);
+  if (s.type === "text") return tl.text.find((a) => a.index === s.index);
+  if (s.type === "images") return tl.images.find((a) => a.index === s.index);
+  if (s.type === "captions") return tl.captions[s.index];
+  return null;
+}
+function jsonHtml(obj) {
+  return escapeHtml(JSON.stringify(obj, null, 2))
+    .replace(/(&quot;(?:(?!&quot;).)*&quot;)(\s*:)/g, '<span class="k">$1</span>$2')
+    .replace(/:\s(&quot;(?:(?!&quot;).)*&quot;)/g, ': <span class="s">$1</span>')
+    .replace(/:\s(-?\d+\.?\d*(?:e[+-]?\d+)?)/gi, ': <span class="n">$1</span>');
+}
+function renderInspector() {
+  const box = $("#inspector"), tl = S.tl;
+  box.replaceChildren();
+  if (!tl) return;
+  const msgs = [...(tl.errors || []).map((m) => ["err", m]), ...(tl.warnings || []).map((m) => ["warn", m])];
+  if (msgs.length) {
+    box.append(el("h3", null, T("errors")));
+    for (const [k, m] of msgs) box.append(el("div", "msg " + k, m));
+  }
+  const it = findSelected();
+  if (it?.render) {
+    box.append(el("h3", null, T("renderMsg")), el("pre", null, S.ver?.render?.message || "–"));
+    return;
+  }
+  if (!it) {
+    box.append(el("h3", null, tl.path || tl.name), el("p", "hint", T("selectHint")));
+    const k = el("p", "hint"); k.innerHTML = T("keys"); box.append(k);
+    return;
+  }
+  const s = S.selected;
+  const title = { clip: `${T("clip")} #${it.index}`, audio: `${T("audio")} [${it.index}]`, text: `${T("text")} [${it.index}]`,
+                  images: `${T("images")} [${it.index}]`, captions: `${T("captions")} ${s.index + 1}` }[s.type];
+  box.append(el("h3", null, title));
+  const dl = el("dl");
+  const add = (k, v) => dl.append(el("dt", null, k), el("dd", "mono", v));
+  add(T("tlRange"), `${fmt(it.start)} → ${fmt(it.end)}`);
+  add(T("dur"), `${(it.end - it.start).toFixed(2)}s`);
+  if (s.type === "clip" && it.kind === "video") add(T("out"), `${it.in.toFixed(2)} → ${it.out.toFixed(2)}s` + (it.speed !== 1 ? ` @ ${it.speed}×` : ""));
+  if (s.type === "audio") add(T("out"), `${it.in.toFixed(2)} → ${it.out.toFixed(2)}s` + (it.loop ? ` (${T("loop")})` : ""));
+  if (it.transition) add("transition", `${it.transition_type} ${it.transition}s`);
+  box.append(dl);
+  const pre = el("pre", "mono");
+  pre.innerHTML = jsonHtml(it.entry ?? { text: it.text });
+  box.append(pre);
+}
+
+/* ---------- live updates ---------- */
+async function poll() {
+  try {
+    const v = await getJSON(`/api/version?${q()}`);
+    const prev = S.ver || {};
+    S.ver = v;
+    if (v.edl_mtime !== prev.edl_mtime) await loadTimeline();
+    else {
+      renderStatus();
+      if (v.preview_mtime !== prev.preview_mtime || v.preview_stale !== prev.preview_stale) renderViewer(true);
+    }
+  } catch { /* server restarting: try again */ }
+  setTimeout(poll, 1000);
+}
+setInterval(loadEdls, 5000);
+
+$("#edlSel").onchange = (e) => {
+  S.edl = e.target.value; S.fitted = false; S.selected = null; S.t = 0; S.previewKey = null; pause();
+  const u = new URL(location); u.searchParams.set("edl", S.edl); history.replaceState(null, "", u);
+  loadTimeline();
+};
+let resizeTimer;
+window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => S.tl && renderTimeline(), 150); });
+
+(async () => {
+  $("#renderBtn").textContent = T("render");
+  const list = await loadEdls();
+  if (!list.length) { showBanner(T("noEdl")); setTimeout(() => location.reload(), 3000); return; }
+  await loadTimeline();
+  poll();
+})();
+</script>
+</body>
+</html>

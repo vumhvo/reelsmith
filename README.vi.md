@@ -8,6 +8,7 @@ Claude không "xem" video được, nên repo này cho Claude:
 
 - **Mắt**: `cstudio ingest` biến footage thành thứ Claude đọc được: contact sheet (ảnh lưới các khung hình, có timestamp), danh sách cắt cảnh, loudness, các đoạn im lặng, transcript từng chữ.
 - **Tay**: toàn bộ bản edit là **một file JSON (EDL)**. Claude viết và sửa EDL, rồi `cstudio render` biên dịch nó thành một lệnh ffmpeg.
+- **Timeline để xem**: `cstudio ui` mở EDL dưới dạng timeline trên localhost: các track có thumbnail và sóng âm, trình phát, xem từng frame. Timeline tự vẽ lại trong khoảng 1 giây mỗi khi Claude sửa EDL, và bản xem trước được render lại ở chế độ nền.
 - **Bước kiểm tra**: `cstudio review` đo loudness, khung đen, đoạn im lặng và xuất contact sheet của bản render để Claude tự soát lỗi.
 - **Kỹ năng**: các skill trong `skills/` dạy Claude quy trình làm việc của một editor.
 
@@ -44,6 +45,7 @@ cstudio ingest footage/ music/   # phân tích (thêm --transcribe --lang vi đ�
 cstudio media                    # liệt kê media id
 cstudio sheet <id> --start 10 --end 20   # zoom vào một đoạn
 cstudio validate edits/main.edl.json
+cstudio ui edits/main.edl.json               # xem timeline trên trình duyệt (http://localhost:8765)
 cstudio render edits/main.edl.json --preview
 cstudio review renders/main-preview.mp4 --edl edits/main.edl.json
 cstudio render edits/main.edl.json

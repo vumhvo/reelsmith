@@ -9,6 +9,7 @@ Claude can't watch video, so this repo gives it:
 - **Eyes**: `cstudio ingest` turns footage into things Claude can read: contact sheets (frame grids with timestamps), scene cuts, loudness, silences, and word-level transcripts.
 - **Hands**: the whole edit is **one JSON file (EDL)**. Claude writes and edits the EDL; `cstudio render` compiles it into a single ffmpeg command.
 - **A check step**: `cstudio review` measures loudness, black frames and silences, and makes a contact sheet of the render so Claude can catch its own mistakes.
+- **A timeline you can watch**: `cstudio ui` opens the EDL as a timeline on localhost: tracks with thumbnails and waveforms, a player, frame-by-frame stepping. It redraws within a second whenever Claude edits the EDL and re-renders the preview in the background.
 - **Skills**: the skills in `skills/` teach Claude an editor's workflow.
 
 ## Install
@@ -44,6 +45,7 @@ cstudio ingest footage/ music/   # analyze (add --transcribe --lang en for trans
 cstudio media                    # list media ids
 cstudio sheet <id> --start 10 --end 20   # zoom in on a section
 cstudio validate edits/main.edl.json
+cstudio ui edits/main.edl.json               # timeline in the browser (http://localhost:8765)
 cstudio render edits/main.edl.json --preview
 cstudio review renders/main-preview.mp4 --edl edits/main.edl.json
 cstudio render edits/main.edl.json
