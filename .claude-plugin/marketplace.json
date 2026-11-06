@@ -1,0 +1,11 @@
+{
+  "name": "reelsmith",
+  "owner": { "name": "vumhvo" },
+  "plugins": [
+    {
+      "name": "reelsmith",
+      "source": "./",
+      "description": "Edit any video with Claude: analyze footage, write a JSON edit decision list, render with ffmpeg, review the result."
+    }
+  ]
+}

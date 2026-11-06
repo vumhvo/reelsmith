@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+uv.lock
+
+# Media and per-project working data never go in the repo
+*.mp4
+*.mov
+*.mkv
+*.webm
+*.m4a
+*.mp3
+*.wav
+.studio/
+renders/
+projects/
+
+# Personal video projects and local Claude Code config living next to the toolkit
+travel-video/
+.claude/
+
+.DS_Store

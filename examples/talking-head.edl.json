@@ -1,0 +1,23 @@
+{
+  "output": { "preset": "youtube", "loudness": -14 },
+  "clips": [
+    { "src": "interview", "in": 84.20, "out": 92.10 },
+    { "src": "interview", "in": 12.05, "out": 31.40, "zoom": 1.12, "focus": [0.5, 0.35] },
+    { "src": "broll-street", "in": 3, "out": 8, "mute": true },
+    { "src": "interview", "in": 37.80, "out": 61.25 },
+    { "src": "interview", "in": 140.10, "out": 158.90, "zoom": 1.12, "focus": [0.5, 0.35] },
+    { "color": "#111111", "duration": 2.5, "transition": { "type": "fade", "duration": 0.5 } }
+  ],
+  "audio": [
+    { "src": "interview", "in": 31.40, "out": 36.40, "at": 27.25 },
+    { "src": "music/bed.mp3", "volume": 0.12, "loop": true, "fade_out": 3, "duck": true }
+  ],
+  "text": [
+    { "text": "Nguyễn Văn A\nFounder, ABC", "start": 1.0, "end": 5.0, "x": 0.06, "y": 0.82, "anchor": "bottom-left", "align": "left", "size": 0.045, "box": "#000000B0", "stroke": null },
+    { "text": "Cảm ơn đã xem", "start": 77.0, "y": 0.5, "size": 0.07, "stroke": null }
+  ],
+  "captions": {
+    "karaoke": false,
+    "replace": { "abc": "ABC" }
+  }
+}

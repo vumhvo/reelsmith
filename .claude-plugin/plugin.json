@@ -1,0 +1,7 @@
+{
+  "name": "reelsmith",
+  "version": "0.1.0",
+  "description": "Edit any video with Claude: analyze footage, write a JSON edit decision list, render with ffmpeg, review the result.",
+  "author": { "name": "vumhvo" },
+  "keywords": ["video", "ffmpeg", "editing", "captions", "remotion"]
+}

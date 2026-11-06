@@ -1,0 +1,21 @@
+{
+  "output": { "preset": "tiktok", "fade_out": 0.6 },
+  "clips": [
+    { "src": "footage/best-view.mp4", "in": 2.0, "out": 4.0 },
+    { "src": "footage/walking.mp4", "in": 0.5, "out": 6.5, "speed": 1.5 },
+    { "src": "footage/landscape-wide.mp4", "in": 10, "out": 13, "fit": "blur" },
+    { "src": "footage/friend.mp4", "in": 3.0, "out": 5.5, "focus": [0.4, 0.45], "zoom": 1.1 },
+    { "src": "photos/sunset.jpg", "duration": 2.2, "zoom": { "from": 1.0, "to": 1.15 }, "transition": { "type": "fade", "duration": 0.3 } },
+    { "src": "footage/best-view.mp4", "in": 4.0, "out": 8.0, "grade": { "saturation": 1.15, "contrast": 1.05 }, "transition": { "type": "fadeblack", "duration": 0.4 } }
+  ],
+  "audio": [
+    { "src": "music/song.mp3", "volume": 0.7, "fade_in": 0.3, "fade_out": 1.5, "duck": true }
+  ],
+  "text": [
+    { "text": "48 giờ ở Đà Lạt", "start": 0.0, "end": 2.0, "y": 0.25, "size": 0.1, "box": "#000000A0", "stroke": null },
+    { "text": "Ngày 1: đi bộ lên đồi", "start": 2.0, "end": 6.0, "y": 0.15, "size": 0.06 }
+  ],
+  "images": [
+    { "src": "logo.png", "start": 0, "x": 0.94, "y": 0.06, "anchor": "top-right", "width": 0.14, "opacity": 0.85 }
+  ]
+}
