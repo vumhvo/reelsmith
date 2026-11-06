@@ -9,7 +9,7 @@ Claude can't watch video, so this repo gives it:
 - **Eyes**: `cstudio ingest` turns footage into things Claude can read: contact sheets (frame grids with timestamps), scene cuts, loudness, silences, and word-level transcripts.
 - **Hands**: the whole edit is **one JSON file (EDL)**. Claude writes and edits the EDL; `cstudio render` compiles it into a single ffmpeg command.
 - **A check step**: `cstudio review` measures loudness, black frames and silences, and makes a contact sheet of the render so Claude can catch its own mistakes.
-- **A timeline you can watch**: `cstudio ui` opens the EDL as a timeline on localhost: tracks with thumbnails and waveforms, a player, frame-by-frame stepping. It redraws within a second whenever Claude edits the EDL and re-renders the preview in the background.
+- **An editor in the browser**: `cstudio ui` opens the workspace on localhost. Import video, audio and images (drag and drop, or use files in place), browse them in a media library, mark in/out points and add them to the timeline, watch the timeline (thumbnails, waveforms, frame-by-frame stepping), and export video (9:16, 16:9, 1:1, 4:5, 4K), audio (MP3/M4A/WAV) or captions (.srt). It redraws within a second whenever Claude edits the EDL and re-renders the preview in the background. Plain HTML/CSS/JS served by Python's standard library: no Node, no npm.
 - **Skills**: the skills in `skills/` teach Claude an editor's workflow.
 
 ## Install

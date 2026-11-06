@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="reelsmith-token" content="__REELSMITH_TOKEN__">
 <title>Reelsmith Timeline</title>
 <style>
 :root {
@@ -38,7 +39,7 @@ header { display: flex; align-items: center; gap: 12px; padding: 8px 12px; backg
 @keyframes blink { 50% { opacity: .2; } }
 
 /* middle: viewer + inspector */
-main { display: grid; grid-template-columns: 1fr 320px; min-height: 0; }
+main { display: grid; grid-template-columns: 250px 1fr 300px; min-height: 0; }
 .viewer { display: grid; grid-template-rows: 1fr auto; min-height: 0; min-width: 0; }
 .screen { position: relative; min-height: 0; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .screen video, .screen img { max-width: 100%; max-height: 100%; display: block; }
@@ -102,6 +103,7 @@ kbd { background: var(--panel-2); border: 1px solid var(--line); border-bottom-w
   :root { --label-w: 56px; }
 }
 </style>
+<link rel="stylesheet" href="/static/editor.css">
 </head>
 <body>
 <header>
@@ -111,9 +113,12 @@ kbd { background: var(--panel-2); border: 1px solid var(--line); border-bottom-w
   <div class="spacer"></div>
   <div class="pill" id="pill">…</div>
   <button id="renderBtn"></button>
+  <button id="importBtn" class="primary-ghost"></button>
+  <button id="exportBtn" class="primary"></button>
 </header>
 
 <main>
+  <aside id="library" class="library"></aside>
   <section class="viewer">
     <div class="screen" id="screen">
       <video id="vid" playsinline preload="auto" hidden></video>
@@ -201,7 +206,11 @@ const fps = () => S.tl?.output?.fps || 30;
 const dur = () => S.tl?.duration || 0;
 const q = () => (S.edl ? `edl=${enc(S.edl)}` : "");
 
+const TOKEN = document.querySelector('meta[name="reelsmith-token"]').content;
 async function getJSON(url, opts) {
+  if (opts && opts.method && opts.method !== "GET") {
+    opts = { ...opts, headers: { "X-Reelsmith-Token": TOKEN, ...(opts.body ? { "Content-Type": "application/json" } : {}), ...(opts.headers || {}) } };
+  }
   const r = await fetch(url, opts);
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || r.statusText);
@@ -227,7 +236,7 @@ async function loadTimeline() {
   catch (e) { showBanner(e.message.includes("no EDL") ? T("noEdl") : e.message); return; }
   S.tl = tl;
   S.ver = { edl_mtime: tl.edl_mtime, preview_mtime: tl.preview_mtime, preview_stale: tl.preview_stale, render: tl.render };
-  if (!S.fitted && tl.duration) { fitZoom(); S.fitted = true; }
+  if ((!S.fitted || !S.userZoomed) && tl.duration) { fitZoom(); S.fitted = true; }
   S.t = Math.min(S.t, Math.max(0, dur() - 1 / fps()));
   if (S.selected && !findSelected()) S.selected = null;
   renderAll();
@@ -405,6 +414,7 @@ function setZoom(pps, anchorX) {
   const ax = anchorX ?? Math.max(0, Math.min(sc.clientWidth - LABEL_W(), S.t * S.pps - sc.scrollLeft));
   const at = (sc.scrollLeft + ax) / S.pps;
   S.pps = Math.max(PPS_MIN, Math.min(PPS_MAX, pps));
+  S.userZoomed = true;
   $("#zoom").value = ppsToSlider(S.pps);
   renderTimeline();
   sc.scrollLeft = Math.max(0, at * S.pps - ax);
@@ -414,7 +424,7 @@ function fitZoom() {
   if (dur() > 0) { S.pps = Math.max(PPS_MIN, Math.min(PPS_MAX, w / dur())); $("#zoom").value = ppsToSlider(S.pps); }
 }
 $("#zoom").oninput = (e) => setZoom(sliderToPps(+e.target.value));
-$("#fitBtn").onclick = () => { fitZoom(); renderTimeline(); $("#scroll").scrollLeft = 0; };
+$("#fitBtn").onclick = () => { S.userZoomed = false; fitZoom(); renderTimeline(); $("#scroll").scrollLeft = 0; };
 $("#scroll").addEventListener("wheel", (e) => {
   if (!(e.ctrlKey || e.metaKey)) return;
   e.preventDefault();
@@ -678,15 +688,19 @@ $("#edlSel").onchange = (e) => {
   loadTimeline();
 };
 let resizeTimer;
-window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => S.tl && renderTimeline(), 150); });
+window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (!S.tl) return; if (!S.userZoomed) fitZoom(); renderTimeline(); }, 150); });
 
-(async () => {
-  $("#renderBtn").textContent = T("render");
+let polling = false;
+async function bootTimeline() {  // also called by editor.js once the first clip creates an EDL
   const list = await loadEdls();
-  if (!list.length) { showBanner(T("noEdl")); setTimeout(() => location.reload(), 3000); return; }
+  if (!list.length) { showBanner(T("noEdl")); setTimeout(bootTimeline, 2000); return; }
+  showBanner(null);
   await loadTimeline();
-  poll();
-})();
+  if (!polling) { polling = true; poll(); }
+}
+$("#renderBtn").textContent = T("render");
+bootTimeline();
 </script>
+<script src="/static/editor.js"></script>
 </body>
 </html>

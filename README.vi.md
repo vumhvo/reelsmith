@@ -8,7 +8,7 @@ Claude không "xem" video được, nên repo này cho Claude:
 
 - **Mắt**: `cstudio ingest` biến footage thành thứ Claude đọc được: contact sheet (ảnh lưới các khung hình, có timestamp), danh sách cắt cảnh, loudness, các đoạn im lặng, transcript từng chữ.
 - **Tay**: toàn bộ bản edit là **một file JSON (EDL)**. Claude viết và sửa EDL, rồi `cstudio render` biên dịch nó thành một lệnh ffmpeg.
-- **Timeline để xem**: `cstudio ui` mở EDL dưới dạng timeline trên localhost: các track có thumbnail và sóng âm, trình phát, xem từng frame. Timeline tự vẽ lại trong khoảng 1 giây mỗi khi Claude sửa EDL, và bản xem trước được render lại ở chế độ nền.
+- **Trình dựng trên trình duyệt**: `cstudio ui` mở workspace trên localhost. Import video, âm thanh, ảnh (kéo thả, hoặc dùng file có sẵn tại chỗ), xem trong thư viện media, đặt điểm vào/ra rồi thêm vào timeline, xem timeline (thumbnail, sóng âm, từng frame), và xuất video (9:16, 16:9, 1:1, 4:5, 4K), âm thanh (MP3/M4A/WAV) hoặc phụ đề (.srt). Timeline tự vẽ lại trong khoảng 1 giây mỗi khi Claude sửa EDL, và bản xem trước được render lại ở chế độ nền. Viết bằng HTML/CSS/JS thuần, server Python thư viện chuẩn: không cần Node hay npm.
 - **Bước kiểm tra**: `cstudio review` đo loudness, khung đen, đoạn im lặng và xuất contact sheet của bản render để Claude tự soát lỗi.
 - **Kỹ năng**: các skill trong `skills/` dạy Claude quy trình làm việc của một editor.
 

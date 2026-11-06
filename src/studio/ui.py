@@ -32,13 +32,66 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+import copy
+import secrets
+
 from PIL import Image, ImageOps
 
 from . import captions as captionsmod, edl as edlmod, ff, render as rendermod
-from .workspace import Workspace
+from .workspace import MEDIA_EXT, Workspace, collect_media
 
 STATIC = Path(__file__).parent / "ui_static"
 PEAKS_PER_SEC = 50
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+QUALITY = {"high": (18, "slow"), "standard": (20, "medium"), "small": (26, "medium")}
+AUDIO_CODECS = {
+    "mp3": ["-c:a", "libmp3lame", "-b:a", "256k"],
+    "m4a": ["-c:a", "aac", "-b:a", "256k"],
+    "wav": ["-c:a", "pcm_s16le"],
+}
+
+
+class Jobs:
+    """Background work (imports, exports) with progress the page can poll."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.items: dict[str, dict] = {}
+        self.n = 0
+
+    def add(self, kind: str, label: str, fn) -> str:
+        with self.lock:
+            self.n += 1
+            jid = f"j{self.n}"
+            self.items[jid] = {"id": jid, "kind": kind, "label": label, "state": "running", "progress": None,
+                               "message": "", "result": None, "started": time.time()}
+
+        def report(progress=None, message=None):
+            with self.lock:
+                j = self.items[jid]
+                j["progress"] = progress
+                if message is not None:
+                    j["message"] = message
+
+        def run():
+            try:
+                res = fn(report)
+                with self.lock:
+                    self.items[jid].update(state="done", progress=1.0, result=res, message="", finished=time.time())
+            except BaseException as e:  # SystemExit from the toolkit carries the readable message
+                readable = isinstance(e, (SystemExit, ff.FFError, ValueError, LookupError))
+                if not readable:
+                    traceback.print_exc()
+                msg = str(e) if readable else f"{type(e).__name__}: {e}"
+                with self.lock:
+                    self.items[jid].update(state="error", message=msg[-2000:], finished=time.time())
+
+        threading.Thread(target=run, daemon=True).start()
+        return jid
+
+    def list(self) -> list[dict]:
+        with self.lock:
+            return sorted((dict(j) for j in self.items.values()), key=lambda j: -j["started"])[:40]
 
 
 def edl_name(p: Path) -> str:
@@ -103,6 +156,10 @@ class App:
         self.peaks_dir = ws.state / "ui" / "peaks"
         self._seen: dict[str, float] = {}   # edl path -> mtime that auto-render last reacted to
         self._peaks_lock = threading.Lock()
+        self._media_lock = threading.Lock()
+        self._edl_lock = threading.Lock()
+        self.jobs = Jobs()
+        self.token = secrets.token_urlsafe(24)   # required on every state-changing request
 
     # -- EDL selection ---------------------------------------------------------
     def edls(self) -> list[Path]:
@@ -313,6 +370,216 @@ class App:
         return out
 
 
+class Actions:
+    """Import, timeline edits and export, mixed into App."""
+
+    # -- media library -----------------------------------------------------------
+    def media_list(self: App) -> list[dict]:
+        res = []
+        for mid, m in self.ws.media().items():
+            adir = self.ws.state / "analysis" / mid
+            res.append({"id": mid, **{k: m.get(k) for k in ("type", "duration", "width", "height", "fps",
+                                                             "has_audio", "path")},
+                        "analyzed": adir.exists() and any(adir.iterdir()),
+                        "transcript": (adir / "transcript.json").exists()})
+        return res
+
+    def upload_target(self: App, filename: str) -> Path:
+        name = re.sub(r"[^\w.\- ]+", "_", Path(filename).name).strip(" .") or "media"
+        ext = Path(name).suffix.lower()
+        if ext not in MEDIA_EXT:
+            raise ValueError(f"unsupported file type: {ext or name}")
+        folder = self.ws.root / ("audio" if ext in ff.AUDIO_EXT else "footage")
+        folder.mkdir(exist_ok=True)
+        dest, n = folder / name, 2
+        while dest.exists():
+            dest, n = folder / f"{Path(name).stem}-{n}{ext}", n + 1
+        return dest
+
+    def ingest(self: App, paths: list[Path], language: str | None, report) -> dict:
+        """Index + analyze (+ transcribe when language is not None; "" = auto-detect)."""
+        from . import analyze, transcribe
+
+        if language == "auto":
+            language = ""
+        files = collect_media(paths)
+        if not files:
+            raise SystemExit("no media files found")
+        done = []
+        for k, f in enumerate(files):
+            with self._media_lock:
+                media = self.ws.media()
+                mid = self.ws.media_id_for(f, media)
+                info = ff.probe(f)
+                info["path"] = self.ws.rel(f)
+                media[mid] = info
+                self.ws.save_media(media)
+            report(k / len(files), f"{mid}: analyzing")
+            if info["type"] in ("video", "audio", "image"):
+                analyze.ingest_one(self.ws, mid, info)
+            if language is not None and info.get("has_audio") and info["type"] in ("video", "audio"):
+                report((k + 0.5) / len(files), f"{mid}: transcribing")
+                transcribe.transcribe(self.ws, mid, language=language or None)
+            done.append(mid)
+        return {"media": done}
+
+    # -- timeline edits ----------------------------------------------------------
+    def edit_edl(self: App, name: str | None, fn) -> Path:
+        with self._edl_lock:
+            try:
+                p = self.edl_path(name)
+            except LookupError:
+                if name:
+                    raise
+                p = self.ws.root / "edits" / "main.edl.json"
+            edl = edlmod.load(p) if p.exists() else {"output": {}, "clips": []}
+            fn(edl)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            tmp = p.with_name(p.name + ".tmp")
+            tmp.write_text(json.dumps(edl, indent=2, ensure_ascii=False) + "\n")
+            tmp.replace(p)
+            return p
+
+    def append(self: App, body: dict) -> dict:
+        src = body["src"]
+        mid, path = self.ws.resolve_src(src)
+        if not path.exists():
+            raise LookupError(f"source not found: {src}")
+        ref = mid or src
+        info = self.ws.info_for(ref)
+        r3 = lambda x: round(float(x), 3)
+        as_ = body.get("as", "clip")
+        if as_ == "audio":
+            entry = {"src": ref, "at": r3(body.get("at", 0))}
+        elif info.get("type") == "image":
+            entry = {"src": ref, "duration": r3(body.get("duration", 3))}
+        else:
+            entry = {"src": ref}
+        if info.get("type") in ("video", "audio"):
+            if body.get("in") is not None and float(body["in"]) > 0:
+                entry["in"] = r3(body["in"])
+            if body.get("out") is not None and float(body["out"]) < float(info.get("duration") or 0) - 0.01:
+                entry["out"] = r3(body["out"])
+        if as_ == "audio" and body.get("volume") is not None:
+            entry["volume"] = float(body["volume"])
+        if as_ == "audio" and body.get("loop"):
+            entry["loop"] = True
+
+        def apply(edl):
+            edl.setdefault("audio" if as_ == "audio" else "clips", []).append(entry)
+            if body.get("preset") and not edl.get("output", {}).get("preset"):
+                edl.setdefault("output", {})["preset"] = body["preset"]
+
+        p = self.edit_edl(body.get("edl"), apply)
+        return {"edl": p.name, "entry": entry}
+
+    # -- export --------------------------------------------------------------------
+    def render_with_progress(self: App, plan, out: Path, rng, report, *, preview: bool = False) -> None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        workdir = self.ws.state / "render" / out.stem
+        workdir.mkdir(parents=True, exist_ok=True)
+        tmp = out.with_name(out.stem + ".part" + out.suffix)
+        cmd, _ = rendermod.build_command(self.ws, plan, tmp, workdir, preview=preview, range_=rng)
+        cmd = [str(c) for c in cmd]
+        cmd[1:1] = ["-progress", "pipe:1"]
+        total = (rng[1] - rng[0]) if rng else plan.duration
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        err: list[str] = []
+        drain = threading.Thread(target=lambda: err.extend(proc.stderr), daemon=True)
+        drain.start()
+        for line in proc.stdout:
+            if line.startswith("out_time_us="):
+                try:
+                    v = int(line.split("=", 1)[1]) / 1e6
+                except ValueError:
+                    continue
+                if total > 0:
+                    report(min(0.99, max(0.0, v / total)))
+        proc.wait()
+        drain.join(timeout=5)
+        if proc.returncode != 0:
+            tmp.unlink(missing_ok=True)
+            raise SystemExit("ffmpeg failed:\n" + "".join(err[-15:]))
+        tmp.replace(out)
+
+    def export(self: App, body: dict) -> str:
+        p = self.edl_path(body.get("edl"))
+        name = edl_name(p)
+        kind = body.get("kind", "video")
+        fmt = body.get("format") or "edl"
+        rng = None
+        if body.get("range"):
+            a, b = (float(x) for x in body["range"])
+            if b <= a:
+                raise ValueError("range end must be after its start")
+            rng = (a, b)
+        tag = f"-{int(rng[0])}-{int(rng[1])}s" if rng else ""
+
+        def load_plan(edl):
+            plan = edlmod.plan(self.ws, edl)
+            if plan.errors:
+                raise SystemExit("EDL has errors:\n" + "\n".join(plan.errors))
+            return plan
+
+        if kind == "video":
+            def run(report):
+                edl = copy.deepcopy(edlmod.load(p))
+                o = edl.setdefault("output", {})
+                if fmt != "edl":
+                    if fmt not in edlmod.PRESETS:
+                        raise ValueError(f"unknown format {fmt}")
+                    for k in ("width", "height", "preset"):
+                        o.pop(k, None)
+                    o["preset"] = fmt
+                o["crf"], o["encoder_preset"] = QUALITY.get(body.get("quality", "standard"), QUALITY["standard"])
+                out = self.ws.root / "renders" / f"{name}{'' if fmt == 'edl' else '-' + fmt}{tag}.mp4"
+                self.render_with_progress(load_plan(edl), out, rng, report)
+                return {"path": self.ws.rel(out), "size": out.stat().st_size}
+            label = f"{name}.mp4" + (f" ({fmt})" if fmt != "edl" else "")
+        elif kind == "audio":
+            afmt = body.get("audio_format", "mp3")
+            if afmt not in AUDIO_CODECS:
+                raise ValueError(f"unknown audio format {afmt}")
+
+            def run(report):
+                plan = load_plan(edlmod.load(p))
+                mix = self.ws.state / "render" / f"{name}-audio-mix.mp4"
+                self.render_with_progress(plan, mix, rng, lambda v=None, m=None: report(None if v is None else v * 0.95),
+                                          preview=True)
+                out = self.ws.root / "renders" / f"{name}{tag}.{afmt}"
+                ff.ffmpeg(["-i", mix, "-vn", *AUDIO_CODECS[afmt], out])
+                mix.unlink(missing_ok=True)
+                return {"path": self.ws.rel(out), "size": out.stat().st_size}
+            label = f"{name}.{afmt}"
+        elif kind == "srt":
+            def run(report):
+                plan = load_plan(edlmod.load(p))
+                chunks, missing = captionsmod.build_chunks(self.ws, plan)
+                if not chunks:
+                    raise SystemExit("no captions: transcribe the clips first"
+                                     + (f" (missing: {', '.join(missing)})" if missing else ""))
+                out = self.ws.root / "renders" / f"{name}.srt"
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text(captionsmod.to_srt(chunks))
+                return {"path": self.ws.rel(out), "size": out.stat().st_size}
+            label = f"{name}.srt"
+        else:
+            raise ValueError(f"unknown export kind {kind}")
+        return self.jobs.add("export", label, run)
+
+    def render_file(self: App, rel: str) -> Path:
+        f = (self.ws.root / rel).resolve()
+        renders = (self.ws.root / "renders").resolve()
+        if renders not in f.parents or not f.is_file():
+            raise PermissionError("only files in renders/ can be downloaded")
+        return f
+
+
+for _name, _fn in vars(Actions).items():
+    if callable(_fn) and not _name.startswith("__"):
+        setattr(App, _name, _fn)
+
+
 def make_handler(app: App):
     class Handler(BaseHTTPRequestHandler):
         server_version = "reelsmith-ui"
@@ -356,6 +623,8 @@ def make_handler(app: App):
             self.send_header("Accept-Ranges", "bytes")
             self.send_header("Content-Length", str(length))
             self.send_header("Cache-Control", "max-age=86400" if cache else "no-cache")
+            for k, v in getattr(self, "headers_extra", {}).items():
+                self.send_header(k, v)
             self.end_headers()
             if self.command == "HEAD":
                 return
@@ -373,12 +642,50 @@ def make_handler(app: App):
         def do_HEAD(self):
             self.do_GET()
 
+        def _local_host(self) -> bool:
+            """Refuse DNS-rebinding: the Host header must name this machine."""
+            host = (self.headers.get("Host") or "").rsplit(":", 1)[0].strip("[]")
+            return host in LOCAL_HOSTS
+
+        def _body_json(self) -> dict:
+            n = int(self.headers.get("Content-Length") or 0)
+            return json.loads(self.rfile.read(n) or b"{}") if n else {}
+
         def do_GET(self):
             u = urlparse(self.path)
             q = {k: v[0] for k, v in parse_qs(u.query).items()}
+            if not self._local_host():
+                return self._json({"error": "forbidden host"}, 403)
             try:
                 if u.path in ("/", "/index.html"):
-                    return self._file(STATIC / "index.html", "text/html; charset=utf-8")
+                    html = (STATIC / "index.html").read_text().replace("__REELSMITH_TOKEN__", app.token)
+                    body = html.encode()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    return self.wfile.write(body)
+                if u.path.startswith("/static/"):
+                    f = (STATIC / u.path[len("/static/"):]).resolve()
+                    if STATIC.resolve() not in f.parents or not f.is_file():
+                        return self._json({"error": "not found"}, 404)
+                    return self._file(f)
+                if u.path == "/api/media":
+                    return self._json(app.media_list())
+                if u.path == "/api/jobs":
+                    return self._json(app.jobs.list())
+                if u.path == "/media/source":
+                    src = q["src"]
+                    path = app.allowed_src(src)
+                    mid, _ = app.ws.resolve_src(src)
+                    if mid and app.ws.proxy_path(mid).exists():
+                        path = app.ws.proxy_path(mid)
+                    return self._file(path)
+                if u.path == "/api/download":
+                    f = app.render_file(q["path"])
+                    self.headers_extra = {"Content-Disposition": f'attachment; filename="{f.name}"'}
+                    return self._file(f)
                 if u.path == "/api/edls":
                     return self._json([{"name": p.name, "path": app.ws.rel(p), "mtime": p.stat().st_mtime}
                                        for p in app.edls()])
@@ -412,6 +719,12 @@ def make_handler(app: App):
         def do_POST(self):
             u = urlparse(self.path)
             q = {k: v[0] for k, v in parse_qs(u.query).items()}
+            # Writes need the per-run token embedded in the page, and must come from a local origin:
+            # another website open in the browser cannot import, edit or export through this server.
+            origin = self.headers.get("Origin")
+            if (not self._local_host() or self.headers.get("X-Reelsmith-Token") != app.token
+                    or (origin and urlparse(origin).hostname not in LOCAL_HOSTS)):
+                return self._json({"error": "forbidden"}, 403)
             try:
                 if u.path == "/api/render":
                     p = app.edl_path(q.get("edl"))
@@ -420,10 +733,52 @@ def make_handler(app: App):
                         return self._json({"error": "EDL has errors", "errors": plan.errors}, 400)
                     app.renderer.start(p, app.preview_path(p))
                     return self._json(app.renderer.status(p))
+                if u.path == "/api/import":
+                    # raw file body (not multipart), streamed to disk; analysis runs as a job
+                    dest = app.upload_target(q["name"])
+                    left = int(self.headers.get("Content-Length") or 0)
+                    part = dest.with_name(dest.name + ".part")
+                    with part.open("wb") as f:
+                        while left > 0:
+                            chunk = self.rfile.read(min(1 << 20, left))
+                            if not chunk:
+                                break
+                            f.write(chunk)
+                            left -= len(chunk)
+                    if left:
+                        part.unlink(missing_ok=True)
+                        return self._json({"error": "upload interrupted"}, 400)
+                    part.replace(dest)
+                    lang = q.get("transcribe")
+                    jid = app.jobs.add("import", dest.name, lambda r: app.ingest([dest], lang, r))
+                    return self._json({"job": jid, "path": app.ws.rel(dest)})
+                if u.path == "/api/import-path":
+                    b = self._body_json()
+                    path = Path(b["path"]).expanduser()
+                    if not path.exists():
+                        return self._json({"error": f"not found: {path}"}, 404)
+                    jid = app.jobs.add("import", path.name, lambda r: app.ingest([path], b.get("transcribe"), r))
+                    return self._json({"job": jid})
+                if u.path == "/api/edl/append":
+                    return self._json(app.append(self._body_json()))
+                if u.path == "/api/export":
+                    return self._json({"job": app.export(self._body_json())})
+                if u.path == "/api/reveal":
+                    f = app.render_file(self._body_json()["path"])
+                    if sys.platform == "darwin":
+                        subprocess.run(["open", "-R", str(f)])
+                    else:
+                        subprocess.run(["xdg-open", str(f.parent)])
+                    return self._json({"ok": True})
                 return self._json({"error": "not found"}, 404)
             except LookupError as e:
                 self._json({"error": str(e)}, 404)
+            except PermissionError as e:
+                self._json({"error": str(e)}, 403)
+            except (ValueError, ff.FFError, json.JSONDecodeError) as e:
+                self._json({"error": str(e)}, 400)
             except Exception as e:
+                traceback.print_exc()
                 self._json({"error": f"{type(e).__name__}: {e}"}, 500)
 
     return Handler
