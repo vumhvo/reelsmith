@@ -27,7 +27,7 @@ def _edl_name(p: Path) -> str:
 def cmd_init(a):
     ws = Workspace.init(Path(a.dir), a.name)
     print(f"workspace ready: {ws.root}")
-    print("next: cstudio ingest <files or folders>")
+    print("next: cstudio ingest <files or folders>, or cstudio ui to import and edit in the browser")
 
 
 def cmd_ingest(a):
@@ -198,9 +198,18 @@ def cmd_ui(a):
     from . import ui
 
     edl = Path(a.edl).resolve() if a.edl else None
+    start = edl.parent if edl else None
+    while start and not start.exists():
+        start = start.parent
+    ws = Workspace.find(start)
+    if edl is None and not any((ws.root / "edits").glob("*.json")):
+        edl = ws.root / "edits" / "main.edl.json"   # brand-new workspace: start an empty edit
     if edl and not edl.exists():
-        raise SystemExit(f"EDL not found: {a.edl}")
-    ws = Workspace.find(edl.parent if edl else None)
+        if not edl.name.endswith(".json"):
+            raise SystemExit(f"EDL not found: {a.edl}")
+        edl.parent.mkdir(parents=True, exist_ok=True)
+        edl.write_text('{\n  "clips": []\n}\n')
+        print(f"created empty EDL: {ws.rel(edl)}", file=sys.stderr)
     ui.serve(ws, edl, port=a.port, open_browser=not a.no_open, auto_render=not a.no_render)
 
 

@@ -221,8 +221,10 @@ class App:
             "path": self.ws.rel(edl_path),
             "output": plan.output,
             "duration": round(total, 3),
-            "errors": plan.errors,
-            "warnings": list(plan.warnings),
+            # an empty edit is a starting point here, not a problem (render/validate still refuse it)
+            "errors": [e for e in plan.errors if e != "EDL has no clips"],
+            "warnings": list(plan.warnings) + (
+                [] if plan.clips else ["empty timeline: import media, then add clips from the library"]),
             "clips": [], "audio": [], "text": [], "images": [], "captions": [],
             "doc": edl,   # raw document: the page edits this and saves it back whole
         }
