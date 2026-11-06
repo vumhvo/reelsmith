@@ -3,6 +3,7 @@ name = "reelsmith"
 version = "0.1.0"
 description = "Video editing toolkit driven by Claude: analysis, JSON edit decision lists, ffmpeg rendering."
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.11"
 dependencies = [
     "pillow>=10.0",
