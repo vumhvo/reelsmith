@@ -31,6 +31,8 @@ Add the skills as a plugin (inside Claude Code):
 
 ## Usage
 
+> Full step-by-step guide in Vietnamese, for beginners and editors alike: [docs/huong-dan-su-dung.md](docs/huong-dan-su-dung.md).
+
 Open Claude Code in **any folder** with your videos and describe what you want, for example:
 
 > Cut these 4 clips into a 30-second TikTok with `song.mp3` as music, Vietnamese captions, and the best shot first.

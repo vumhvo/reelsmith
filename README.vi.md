@@ -31,6 +31,8 @@ Thêm skills dưới dạng plugin (chạy trong Claude Code):
 
 ## Cách dùng
 
+> Hướng dẫn đầy đủ, có mục lục, dành cho cả người chưa từng edit video: [docs/huong-dan-su-dung.md](docs/huong-dan-su-dung.md).
+
 Mở Claude Code ở **bất kỳ thư mục nào** chứa video của bạn và nói điều bạn muốn, ví dụ:
 
 > Cắt 4 clip này thành video TikTok 30 giây, có nhạc `song.mp3`, phụ đề tiếng Việt, mở đầu bằng cảnh đẹp nhất.
