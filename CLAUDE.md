@@ -8,6 +8,7 @@ A toolkit that lets Claude edit **any** video: `cstudio` CLI (Python, `src/studi
 - `analyze.py`: scenes, silence/loudness, contact sheets, proxies. `transcribe.py`: mlx-whisper via `uvx`.
 - `edl.py`: EDL loading, presets, validation, timeline placement (`Plan`). `render.py`: EDL → one ffmpeg `filter_complex`.
 - `layer.py`: text/images/captions rasterized with Pillow into a concat-demuxer overlay stream (Homebrew ffmpeg has no drawtext/libass).
+- `roto.py`: rotoscoping (`cstudio roto` / `cutout`): SAM 2 runs through `uvx` in `roto_worker.py` (never imported), masks in `.studio/roto/<name>/`.
 - `captions.py`: remaps source-time transcripts onto the timeline (cuts, speed, transitions). `review.py`: QA of renders.
 - `ui.py` + `ui_static/` (`index.html` timeline, `editor.js`/`editor.css` media library, import/export, jobs; `menu.js` right-click menus; `edit.js` timeline editing, inspector forms, live canvas view, crop tool; saves the whole EDL via `/api/edl/save` with an mtime conflict check): `cstudio ui`, a stdlib HTTP server (Range support for seeking) and vanilla JS; polls the EDL mtime and auto-renders the preview. Every POST needs the per-run token embedded in the page plus a local Host/Origin.
 

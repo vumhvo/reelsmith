@@ -44,6 +44,7 @@ cstudio init                     # biến thư mục hiện tại thành workspa
 cstudio ingest footage/ music/   # phân tích (thêm --transcribe --lang vi để có transcript)
 cstudio media                    # liệt kê media id
 cstudio sheet <id> --start 10 --end 20   # zoom vào một đoạn
+cstudio roto <id> --start 12 --end 15 --pos 0.5,0.4   # tách người (SAM 2) -> mask cho hiệu ứng trong EDL
 cstudio validate edits/main.edl.json
 cstudio ui edits/main.edl.json               # xem timeline trên trình duyệt (http://localhost:8765)
 cstudio render edits/main.edl.json --preview
@@ -66,6 +67,7 @@ Schema đầy đủ: [skills/edl/reference.md](skills/edl/reference.md).
 | `captions` | Transcript, phụ đề, kiểu chữ phụ đề, xuất SRT |
 | `rough-cut` | Edit theo lời nói: phỏng vấn, podcast, talking-head |
 | `short-form` | TikTok/Reels/Shorts: hook, nhịp dựng, vùng an toàn, cắt theo beat |
+| `rotoscoping` | Tách người/vật thể bằng SAM 2 (chạy local): xóa/thay/làm mờ nền, colour pop, viền sáng, chữ sau người, che mặt, xuất cutout trong suốt |
 | `ffmpeg-recipes` | Các thao tác lẻ ngoài EDL |
 
 ## Cấu trúc

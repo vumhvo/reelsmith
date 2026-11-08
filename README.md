@@ -44,6 +44,7 @@ cstudio init                     # turn the current folder into a workspace
 cstudio ingest footage/ music/   # analyze (add --transcribe --lang en for transcripts)
 cstudio media                    # list media ids
 cstudio sheet <id> --start 10 --end 20   # zoom in on a section
+cstudio roto <id> --start 12 --end 15 --pos 0.5,0.4   # track a person (SAM 2) -> masks for EDL effects
 cstudio validate edits/main.edl.json
 cstudio ui edits/main.edl.json               # timeline in the browser (http://localhost:8765)
 cstudio render edits/main.edl.json --preview
@@ -66,6 +67,7 @@ Full schema: [skills/edl/reference.md](skills/edl/reference.md).
 | `captions` | Transcription, subtitles, caption styling, SRT export |
 | `rough-cut` | Speech-led edits: interviews, podcasts, talking heads |
 | `short-form` | TikTok/Reels/Shorts: hooks, pacing, safe zones, beat sync |
+| `rotoscoping` | Track people/objects with SAM 2 (local): background removal/replacement/blur, colour pop, outline, text behind the subject, censoring, alpha cutouts |
 | `ffmpeg-recipes` | One-off operations outside the EDL |
 
 ## Layout

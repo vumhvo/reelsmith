@@ -64,6 +64,7 @@ Report the output path, duration, resolution, and anything you could not do. Kee
 
 - Never modify or delete source media. Outputs go to `renders/`.
 - Prefer multiple EDLs (`main`, `v2-short`, `teaser`) over overwriting one the user liked.
+- Anything that needs a person/object isolated (background change, cutout, blur a face, text behind someone) → `rotoscoping` skill.
 - If a request is beyond the EDL (stabilization, denoise, chroma key, reverse, GIF export, ...), use per-clip `vf`/`af` raw filters or the `ffmpeg-recipes` skill on an intermediate file, then reference that file in the EDL.
 - Motion graphics beyond text/images (animated charts, complex templates) can be built in Remotion if the user has a Remotion project; render it to an .mp4/.mov and use it as a clip.
 - HDR sources (`hdr` in `cstudio media`) are not tone-mapped; warn the user if colors look washed out.
@@ -73,4 +74,5 @@ Report the output path, duration, resolution, and anything you could not do. Kee
 - `captions`: transcription, caption styles, fixing words, SRT export.
 - `rough-cut`: speech-led edits (interviews, podcasts, vlogs): select quotes, remove silences/fillers.
 - `short-form`: TikTok/Reels/Shorts craft: hook, pacing, reframing, safe zones.
+- `rotoscoping`: track a person/object with SAM 2: background removal/replacement/blur, colour pop, outline, text behind the subject, censoring, transparent cutouts.
 - `ffmpeg-recipes`: one-off operations outside the EDL.

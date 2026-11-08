@@ -27,7 +27,8 @@ Optional on any clip:
 | key | meaning |
 |---|---|
 | `speed` | playback rate (video only), e.g. `0.5` slow-mo, `2` fast; audio pitch kept |
-| `transition` | `{ "type": "fade", "duration": 0.5 }` into this clip from the previous one. Types: fade, fadeblack, fadewhite, dissolve, wipeleft/right/up/down, slideleft/right/up/down, smoothleft/right/up/down, circleopen, circleclose, radial, pixelize, zoomin, hblur, diagtl/tr/bl/br, … (ffmpeg xfade names) |
+| `reverse` | `true` plays the clip backwards (video only, e.g. a rewind into the start; keep it a few seconds, it is buffered). Combine with `speed` for a fast rewind |
+| `transition` | `{ "type": "fade", "duration": 0.5 }` into this clip from the previous one. Types: fade, fadeblack, fadewhite, dissolve, wipeleft/right/up/down, slideleft/right/up/down, smoothleft/right/up/down, circleopen, circleclose, radial, pixelize, zoomin, hblur, diagtl/tr/bl/br, … (ffmpeg xfade names). Reelsmith extras: `whipleft` `whipright` `whipup` `whipdown` (whip pan: fast slide with directional motion blur, ~0.2 s) and `spin` (one eased 360° camera roll with blur, ~0.3 s) |
 | `fit` | per-clip override of `output.fit` |
 | `focus` | `[x, y]` 0–1: which part of the frame to keep when cropping (`cover`) or to zoom towards. Default `[0.5, 0.5]` |
 | `zoom` | number ≥ 1 = static punch-in (cover only); `{ "from": 1.0, "to": 1.2 }` = animated Ken Burns over the clip |
@@ -37,6 +38,9 @@ Optional on any clip:
 | `volume` | clip audio gain (1 = unchanged, 0.5 = −6 dB) |
 | `mute` | `true` drops the clip's own audio |
 | `captions` | `false` excludes this clip from auto captions |
+| `fx` | list of built-in effects: `flash` (white flash into the clip, for cuts on a hit), `punch` (zoom punch that settles in ~0.4 s), `shake` (decaying camera shake), `rgb` (chromatic RGB split), `trail` (motion echo), `bw` (black & white), `grain`, `vignette`, `impact` (anime impact frame on the cut: 1 negative frame + 1 hard black & white frame; use instead of `flash` on the biggest hits). `open` (letterbox slit: the picture opens from a thin horizontal band to full frame in 0.35 s, a strong first-beat reveal). Works with any `fit`; combine with `zoom: {from,to}` |
+| `bounce` | list of timeline times (e.g. the beats inside the clip): a small zoom kick on each that settles in ~0.2 s, keeps slow shots moving with the music. `bounce_amount` (default 0.05 = +5%) |
+| `object` | effects on one person/object from per-frame masks (made with `cstudio roto`, see the `rotoscoping` skill; paste the `object` snippet from its `roto.json`), applied before crop/zoom/speed so they follow the motion: `{ "mask": "dir/" (00000.png… white = object) or "still.png", "from": <source time of mask frame 0>, "fps": 30, ... }`. Effects: `background`: `"bw"` (colour pop) \| `"dim"` / `"dark"` (spotlight) \| `"blur"` (portrait blur) \| `"pixelate"` \| `"#RRGGBB"` (solid colour, e.g. green screen) \| raw ffmpeg filters; `background_src`: image/video (id or path) placed behind the object, covering the frame (`background_in`: start second; video loops); `subject`: look on the object only, same names (`blur`/`pixelate` to censor, `bw`, `pop`, `bright`, `negate`) or raw filters; `outline`: `{ "color": "#FFD400", "width": 6, "glow": 6 }`; `flicker`: [timeline times], `flicker_color` `#FFD400`, `flicker_opacity` 0.7, `flicker_len` 0.07. Matte: `grow` (px, negative shrinks), `feather` (edge blur sigma, px), `invert` (swap object and background). Also the matte for `text[].behind`; `front_grow` = pixels that matte is grown (default: outline width, so the glow stays in front). Don't combine with `fx: ["bw"]` (that greys the outline too) |
 | `vf`, `af` | raw ffmpeg filter chain appended to the clip's video / audio |
 
 ## `audio[]` (music, voice-over, sound effects)
@@ -71,6 +75,20 @@ Tracks are mixed with the clips' audio, then the whole mix is normalized to `out
 | `max_width` | 0.86 | wrap width (fraction of frame width) |
 | `line_spacing` | 1.15 | |
 | `case` | – | `upper` / `lower` |
+| `rotate` | 0 | tilt in degrees (counter-clockwise), e.g. `-4` for a punchy slanted title |
+| `behind` | false | text behind the subject: drawn under the masked object (clip `object.mask`) of whatever clip is on screen, so the person stays in front. Where no clip has a mask it is ordinary text. Use big words placed over the subject |
+
+**Motion** (any `text[]` item; animated stretches are rendered per frame, static ones stay one image):
+
+| key | notes |
+|---|---|
+| `enter` | `"pop"` or `{ "type": "pop", "duration": 0.3 }`. Types: `fade` `pop` (scale up with overshoot) `stamp` (slams down from 2.3×) `zoom` `slideup` `slidedown` `slideleft` `slideright` `drop` (falls in with bounce) `blur` (focus pull) `spin` |
+| `exit` | same types, played backwards (default duration 0.25) |
+| `reveal` | `"words"`: words appear one by one (rise + fade in 0.14 s each). With `highlight_color`, the newest word is highlighted (karaoke) |
+| `word_times` | timeline time of each word for `reveal` (e.g. from a song transcript); default: evenly over `reveal_duration` |
+| `reveal_duration` | seconds to reveal all words when `word_times` is missing (default min(60% of item, 0.18 s/word)) |
+| `pulse` | list of timeline times (e.g. beats) where the text punches up in scale and settles in 0.22 s |
+| `pulse_amount` | scale bump for `pulse` (default 0.12 = +12%) |
 
 ## `images[]` (logos, stickers, picture-in-picture stills)
 

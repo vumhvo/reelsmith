@@ -42,6 +42,8 @@ XFADE_TYPES = {
     "smoothdown", "circleopen", "circleclose", "circlecrop", "rectcrop", "distance", "pixelize",
     "radial", "hblur", "zoomin", "squeezeh", "squeezev", "diagtl", "diagtr", "diagbl", "diagbr",
     "hlslice", "hrslice", "vuslice", "vdslice", "fadegrays",
+    # reelsmith transitions (xfade base + effect on the transition frames, see render.XFADE_BASE)
+    "whipleft", "whipright", "whipup", "whipdown", "spin",
 }
 
 
@@ -173,6 +175,8 @@ def plan(ws: Workspace, edl: dict) -> Plan:
         cursor = start + dur
 
     p.clips = placed
+    for c in placed:
+        _check_object(ws, p, c)
     if not clips:
         p.errors.append("EDL has no clips")
     p.output = resolve_output(edl, first_visual)
@@ -194,6 +198,35 @@ def plan(ws: Workspace, edl: dict) -> Plan:
         if not im.get("src") or not ws.resolve_src(im["src"])[1].exists():
             p.errors.append(f"images[{k}]: source not found: {im.get('src')}")
     return p
+
+
+def _check_object(ws: Workspace, p: Plan, c: Placed) -> None:
+    """clip.object: mask exists and covers the clip's source range; background_src exists."""
+    obj = c.clip.get("object")
+    if not obj:
+        return
+    where = f"clips[{c.index}].object"
+    if c.kind not in ("video", "image"):
+        p.errors.append(f"{where}: only video and image clips can have an object mask")
+        return
+    if not obj.get("mask"):
+        p.errors.append(f"{where}: needs `mask` (from `cstudio roto`: the job's roto.json has the snippet)")
+        return
+    mp = ws.abs(obj["mask"])
+    if not mp.exists():
+        p.errors.append(f"{where}: mask not found: {obj['mask']}")
+        return
+    if obj.get("background_src") and not ws.resolve_src(obj["background_src"])[1].exists():
+        p.errors.append(f"{where}: background_src not found: {obj['background_src']}")
+    if mp.is_dir() and c.kind == "video":
+        frames = len(list(mp.glob("*.png")))
+        fps = float(obj.get("fps", 30))
+        m0 = float(obj.get("from", 0))
+        m1 = m0 + frames / fps
+        s0, s1 = c.src_in, c.src_in + c.duration * c.speed
+        if s0 < m0 - 0.05 or s1 > m1 + 0.05:
+            p.warnings.append(f"{where}: masks cover source {m0:.2f}-{m1:.2f}s but the clip uses {s0:.2f}-{s1:.2f}s; "
+                              "outside that the effect has no mask (re-run `cstudio roto` on the full range)")
 
 
 def timeline_table(p: Plan) -> str:

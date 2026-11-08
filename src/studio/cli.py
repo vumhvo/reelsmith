@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import analyze, captions, edl as edlmod, ff, render as rendermod, review as reviewmod, transcribe
+from . import analyze, captions, edl as edlmod, ff, render as rendermod, review as reviewmod, roto, transcribe
 from .workspace import Workspace, collect_media
 
 
@@ -106,6 +106,8 @@ def cmd_frame(a):
     p, outdir = _src_path(a.src)
     out = Path(a.out) if a.out else outdir / f"frame_{a.t:.2f}.jpg"
     analyze.extract_frame(p, a.t, out, width=a.width)
+    if a.grid:
+        roto.draw_grid(out)
     print(out)
 
 
@@ -129,6 +131,29 @@ def cmd_transcribe(a):
         out.append({"id": mid, "language": tr["language"], "words": len(tr["words"]),
                     "text": f".studio/analysis/{mid}/transcript.txt"})
     _print(out)
+
+
+def cmd_roto(a):
+    ws = Workspace.find()
+    if a.list or not a.src:
+        return _print(roto.list_jobs(ws))
+    if a.prompts:
+        txt = a.prompts.strip()
+        prompts = json.loads(txt if txt[:1] in "[{" else Path(txt).read_text())
+        prompts = prompts if isinstance(prompts, list) else [prompts]
+    else:
+        prompts = [{"at": a.at, "pos": a.pos, "neg": a.neg, "box": a.box}]
+    r = roto.track(ws, a.src, start=a.start, end=a.end, name=a.name, prompts=prompts, model=a.model,
+                   max_size=a.max_size, force=a.force)
+    r.pop("key", None)
+    _print(r)
+    print(f"\nlook at {r['prompt_sheet']} (right object?) and {r['review_sheet']} (tracking held?)", file=sys.stderr)
+
+
+def cmd_cutout(a):
+    ws = Workspace.find()
+    _print(roto.export(ws, a.name, fmt=a.format, out=a.out, grow=a.grow, feather=a.feather,
+                       invert=a.invert, matte=a.matte))
 
 
 def _plan(path: str):
@@ -255,8 +280,38 @@ def main(argv=None):
     s.add_argument("src")
     s.add_argument("t", type=float)
     s.add_argument("--width", type=int, default=960)
+    s.add_argument("--grid", action="store_true", help="draw a 0-1 coordinate grid (to pick roto points)")
     s.add_argument("-o", "--out")
     s.set_defaults(fn=cmd_frame)
+
+    s = sub.add_parser("roto", help="rotoscope: segment + track a person/object with SAM 2 -> per-frame masks")
+    s.add_argument("src", nargs="?", help="media id or path (omit to list roto jobs)")
+    s.add_argument("--start", type=float, default=0.0, help="source seconds")
+    s.add_argument("--end", type=float, help="source seconds (default: source end)")
+    s.add_argument("--name", help="job name -> .studio/roto/<name>/ (default: <id>-<start>-<end>)")
+    s.add_argument("--pos", action="append", default=[], metavar="X,Y",
+                   help="point ON the object, fractions 0-1 of the frame (repeatable)")
+    s.add_argument("--neg", action="append", default=[], metavar="X,Y", help="point NOT on the object (repeatable)")
+    s.add_argument("--box", metavar="X0,Y0,X1,Y1", help="box around the object, fractions 0-1")
+    s.add_argument("--at", type=float, help="source time of the frame the points refer to (default: --start)")
+    s.add_argument("--prompts", help="JSON (inline or file): [{id, at, pos, neg, box}, ...] for several objects "
+                                     "or correction clicks at other times")
+    s.add_argument("--model", default="small", help="tiny | small | base | large, or a HF model id")
+    s.add_argument("--max-size", type=int, default=1280, help="longest side of the frames SAM 2 sees")
+    s.add_argument("--force", action="store_true")
+    s.add_argument("--list", action="store_true", help="list roto jobs")
+    s.set_defaults(fn=cmd_roto)
+
+    s = sub.add_parser("cutout", help="export a roto job as a transparent cutout (or its matte) for other editors")
+    s.add_argument("name", help="roto job name")
+    s.add_argument("--format", choices=["mov", "webm", "png", "mp4"], default="mov",
+                   help="mov = ProRes 4444 alpha, webm = VP9 alpha, png = image sequence, mp4 = matte only")
+    s.add_argument("--matte", action="store_true", help="export the black/white matte instead of the cutout")
+    s.add_argument("--grow", type=int, default=0, help="grow (+) / shrink (-) the mask by N pixels")
+    s.add_argument("--feather", type=float, default=1.0, help="edge softness (blur sigma, px)")
+    s.add_argument("--invert", action="store_true", help="keep the background instead of the object")
+    s.add_argument("-o", "--out")
+    s.set_defaults(fn=cmd_cutout)
 
     s = sub.add_parser("transcribe", help="speech to text with word timestamps")
     s.add_argument("ids", nargs="*", help="media ids (default: all with audio)")

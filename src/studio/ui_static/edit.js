@@ -248,7 +248,7 @@ document.addEventListener("keydown", (e) => {
 /* ---------- property forms ---------- */
 const XF = ["fade", "fadeblack", "fadewhite", "dissolve", "wipeleft", "wiperight", "wipeup", "wipedown", "slideleft", "slideright",
   "slideup", "slidedown", "smoothleft", "smoothright", "circleopen", "circleclose", "radial", "pixelize", "zoomin", "hblur",
-  "diagtl", "diagtr", "diagbl", "diagbr"];
+  "diagtl", "diagtr", "diagbl", "diagbr", "whipleft", "whipright", "whipup", "whipdown", "spin"];
 const ANCH = ["center", "top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"];
 const R = (min, max, step, def) => ({ min, max, step, def });
 const FRAME = ["frameSec", [["fit", "select", { options: ["", "cover", "contain", "blur", "fill"] }], ["zoom", "number", R(1, 4, 0.01, 1)],
