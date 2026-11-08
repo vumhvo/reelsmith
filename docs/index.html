@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reelsmith Docs</title>
-<meta name="description" content="Hướng dẫn sử dụng Reelsmith: edit video bằng cách nói chuyện với Claude. Dành cho cả người mới và người đã quen dựng phim.">
+<meta name="description" content="Reelsmith user guide: edit any video by talking to Claude. For beginners and experienced editors alike.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23e8590c'/%3E%3Cpath d='M12 9l11 7-11 7z' fill='white'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -58,6 +58,13 @@ header.top {
 }
 .icon-btn:hover { border-color: var(--accent); text-decoration: none; }
 #menuBtn { display: none; }
+header.top > * { flex: none; }
+header.top > .spacer { flex: 1; }
+@media (max-width: 420px) { .brand-name { display: none; } header.top { gap: 8px; } }
+.lang { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; height: 36px; }
+.lang a { display: grid; place-items: center; padding: 0 10px; font-size: 13px; font-weight: 600; color: var(--muted); background: var(--panel); }
+.lang a:hover { text-decoration: none; color: var(--text); }
+.lang a.on { background: var(--accent); color: #fff; }
 
 /* layout */
 .layout { display: flex; max-width: 1280px; margin: 0 auto; }
@@ -165,13 +172,14 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; text-decoration: none; }
 </head>
 <body>
 <header class="top">
-  <button class="icon-btn" id="menuBtn" aria-label="Mở mục lục">☰</button>
+  <button class="icon-btn" id="menuBtn" data-i18n-label="menu">☰</button>
   <a class="brand" href="#">
     <span class="logo"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 1.5l9 5.5-9 5.5z" fill="#fff"/></svg></span>
-    Reelsmith <small>Hướng dẫn sử dụng</small>
+    <span class="brand-name">Reelsmith</span> <small data-i18n="sub"></small>
   </a>
   <span class="spacer"></span>
-  <button class="icon-btn" id="themeBtn" aria-label="Đổi giao diện sáng/tối">◐</button>
+  <nav class="lang" aria-label="Language"><a href="?lang=en" data-lang="en">EN</a><a href="?lang=vi" data-lang="vi">VI</a></nav>
+  <button class="icon-btn" id="themeBtn" data-i18n-label="theme">◐</button>
   <a class="icon-btn" href="https://github.com/vumhvo/reelsmith" target="_blank" rel="noopener" aria-label="GitHub">
     <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.540 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.690-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
     <span class="gh-label">GitHub</span>
@@ -179,41 +187,80 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; text-decoration: none; }
 </header>
 
 <div class="layout">
-  <nav class="side" id="side" aria-label="Mục lục">
-    <input class="search" id="search" type="search" placeholder="Tìm mục…  ( / )" aria-label="Tìm mục">
+  <nav class="side" id="side" data-i18n-label="contents">
+    <input class="search" id="search" type="search">
     <ol id="toc"></ol>
     <div class="side-foot">
-      Nguồn: <a href="https://github.com/vumhvo/reelsmith/blob/main/docs/huong-dan-su-dung.md" target="_blank" rel="noopener">huong-dan-su-dung.md</a><br>
-      Thấy sai? Sửa file đó và gửi PR.
+      <span data-i18n="source"></span> <a id="srcLink" target="_blank" rel="noopener"></a><br>
+      <span data-i18n="fix"></span>
     </div>
   </nav>
 
   <main>
     <article id="doc">
       <section class="hero">
-        <div class="eyebrow">Reelsmith · Tài liệu</div>
-        <h1>Edit video bằng cách nói chuyện với Claude</h1>
-        <p>Bỏ video, ảnh, nhạc vào một thư mục và nói điều bạn muốn. Không cần biết dựng phim, không cần phần mềm edit nặng nề.</p>
+        <div class="eyebrow" data-i18n="eyebrow"></div>
+        <h1 data-i18n="title"></h1>
+        <p data-i18n="lead"></p>
         <div class="cta">
-          <a class="btn primary" href="#bat-dau-nhanh">Bắt đầu nhanh →</a>
-          <a class="btn" href="#cai-dat">Cài đặt</a>
-          <a class="btn" href="#thuat-ngu">Thuật ngữ</a>
+          <a class="btn primary" id="ctaStart"></a>
+          <a class="btn" id="ctaInstall"></a>
+          <a class="btn" id="ctaTerms"></a>
         </div>
       </section>
-      <div id="content"><p class="loading">Đang tải tài liệu…</p></div>
+      <div id="content"><p class="loading" data-i18n="loading"></p></div>
     </article>
   </main>
 </div>
 
-<button class="icon-btn to-top" id="toTop" aria-label="Lên đầu trang">↑</button>
+<button class="icon-btn to-top" id="toTop" data-i18n-label="top">↑</button>
 
 <script>
-const SRC = "huong-dan-su-dung.md";
 const REPO = "https://github.com/vumhvo/reelsmith/blob/main/";
+const DOCS = { en: "guide.md", vi: "huong-dan-su-dung.md" };
+const I18N = {
+  en: {
+    sub: "User guide", menu: "Open contents", theme: "Toggle light/dark", contents: "Contents", top: "Back to top",
+    search: "Search sections…  ( / )", source: "Source:", fix: "Spotted a mistake? Edit that file and send a PR.",
+    eyebrow: "Reelsmith · Docs", title: "Edit any video by talking to Claude",
+    lead: "Put your videos, photos and music in a folder and say what you want. No editing experience needed, no heavy software to learn.",
+    start: "Quick start →", install: "Install", terms: "Key terms", loading: "Loading the guide…",
+    copy: "Copy", copied: "Copied ✓", copyFail: "Couldn't copy",
+    error: "Couldn't load the guide ({e}). If you opened the file directly, serve the folder instead, e.g. <code>python3 -m http.server -d docs</code>, or read <a href=\"{url}\">the guide on GitHub</a>.",
+    anchors: { start: "quick-start", install: "install", terms: "key-terms", toc: "contents" },
+  },
+  vi: {
+    sub: "Hướng dẫn sử dụng", menu: "Mở mục lục", theme: "Đổi giao diện sáng/tối", contents: "Mục lục", top: "Lên đầu trang",
+    search: "Tìm mục…  ( / )", source: "Nguồn:", fix: "Thấy sai? Sửa file đó và gửi PR.",
+    eyebrow: "Reelsmith · Tài liệu", title: "Edit video bằng cách nói chuyện với Claude",
+    lead: "Bỏ video, ảnh, nhạc vào một thư mục và nói điều bạn muốn. Không cần biết dựng phim, không cần phần mềm edit nặng nề.",
+    start: "Bắt đầu nhanh →", install: "Cài đặt", terms: "Thuật ngữ", loading: "Đang tải tài liệu…",
+    copy: "Sao chép", copied: "Đã chép ✓", copyFail: "Không chép được",
+    error: "Không tải được tài liệu ({e}). Nếu bạn mở file trực tiếp, hãy chạy một web server, ví dụ <code>python3 -m http.server -d docs</code>, hoặc đọc <a href=\"{url}\">bản trên GitHub</a>.",
+    anchors: { start: "bat-dau-nhanh", install: "cai-dat", terms: "thuat-ngu", toc: "muc-luc" },
+  },
+};
+
+/* language: ?lang=vi, else the last choice, else English */
+function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch { return null; } }
+const qLang = new URLSearchParams(location.search).get("lang");
+const LANG = I18N[qLang] ? qLang : I18N[store("reelsmith-docs-lang")] ? store("reelsmith-docs-lang") : "en";
+store("reelsmith-docs-lang", LANG);
+const T = I18N[LANG], SRC = DOCS[LANG];
+document.documentElement.lang = LANG;
+document.querySelectorAll("[data-i18n]").forEach((e) => (e.textContent = T[e.dataset.i18n]));
+document.querySelectorAll("[data-i18n-label]").forEach((e) => e.setAttribute("aria-label", T[e.dataset.i18nLabel]));
+document.querySelectorAll(".lang a").forEach((a) => a.classList.toggle("on", a.dataset.lang === LANG));
+const search0 = document.getElementById("search");
+search0.placeholder = T.search; search0.setAttribute("aria-label", T.search);
+const srcLink = document.getElementById("srcLink");
+srcLink.href = REPO + "docs/" + SRC; srcLink.textContent = SRC;
+[["ctaStart", "start"], ["ctaInstall", "install"], ["ctaTerms", "terms"]].forEach(([id, k]) => {
+  const a = document.getElementById(id); a.textContent = T[k]; a.href = "#" + T.anchors[k];
+});
 
 /* theme */
 const root = document.documentElement;
-function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch { return null; } }
 const saved = store("reelsmith-docs-theme");
 if (saved) root.dataset.theme = saved;
 document.getElementById("themeBtn").onclick = () => {
@@ -237,7 +284,7 @@ async function load() {
     if (!r.ok) throw new Error("HTTP " + r.status);
     md = await r.text();
   } catch (e) {
-    content.innerHTML = `<p class="error">Không tải được tài liệu (${e.message}). Nếu bạn mở file trực tiếp, hãy chạy một web server, ví dụ <code>python3 -m http.server -d docs</code>, hoặc đọc <a href="${REPO}docs/${SRC}">bản trên GitHub</a>.</p>`;
+    content.innerHTML = `<p class="error">${T.error.replace("{e}", e.message).replace("{url}", REPO + "docs/" + SRC)}</p>`;
     return;
   }
   content.innerHTML = marked.parse(md);
@@ -268,10 +315,10 @@ function enhance(content) {
   }
 
   /* drop the "back to TOC" link: the sidebar and the ↑ button replace it */
-  content.querySelectorAll('a[href="#muc-luc"]').forEach((a) => a.closest("p")?.remove());
+  content.querySelectorAll(`a[href="#${T.anchors.toc}"]`).forEach((a) => a.closest("p")?.remove());
 
-  /* the "Mục lục" section: wrap it so it shows only on phones (the sidebar has it on desktop) */
-  const ml = document.getElementById("muc-luc");
+  /* the contents section: wrap it so it shows only on phones (the sidebar has it on desktop) */
+  const ml = document.getElementById(T.anchors.toc);
   if (ml) {
     const wrap = document.createElement("div"); wrap.id = "muc-luc-block";
     ml.before(wrap);
@@ -282,6 +329,8 @@ function enhance(content) {
   /* links to repo files open on GitHub */
   content.querySelectorAll("a[href]").forEach((a) => {
     const href = a.getAttribute("href");
+    const other = Object.entries(DOCS).find(([, f]) => f === href);
+    if (other) { a.href = "?lang=" + other[0]; return; }  /* link to the other language's guide */
     if (href.startsWith("../")) a.href = REPO + href.slice(3);
     if (/^https?:/.test(a.getAttribute("href"))) { a.target = "_blank"; a.rel = "noopener"; }
   });
@@ -293,16 +342,16 @@ function enhance(content) {
 
   /* copy buttons */
   content.querySelectorAll("pre").forEach((pre) => {
-    const b = document.createElement("button"); b.className = "copy"; b.textContent = "Sao chép";
+    const b = document.createElement("button"); b.className = "copy"; b.textContent = T.copy;
     b.onclick = async () => {
-      try { await navigator.clipboard.writeText(pre.querySelector("code").innerText); b.textContent = "Đã chép ✓"; }
-      catch { b.textContent = "Không chép được"; }
-      setTimeout(() => (b.textContent = "Sao chép"), 1500);
+      try { await navigator.clipboard.writeText(pre.querySelector("code").innerText); b.textContent = T.copied; }
+      catch { b.textContent = T.copyFail; }
+      setTimeout(() => (b.textContent = T.copy), 1500);
     };
     pre.append(b);
   });
 
-  buildToc(heads.filter((h) => h.id !== "muc-luc"));
+  buildToc(heads.filter((h) => h.id !== T.anchors.toc));
   if (location.hash) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
 }
 

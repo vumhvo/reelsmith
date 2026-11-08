@@ -31,7 +31,7 @@ Add the skills as a plugin (inside Claude Code):
 
 ## Usage
 
-> Full step-by-step guide in Vietnamese, for beginners and editors alike: [docs/huong-dan-su-dung.md](docs/huong-dan-su-dung.md).
+> Full step-by-step guide, for beginners and editors alike: **[vumhvo.github.io/reelsmith](https://vumhvo.github.io/reelsmith/)** (source: [docs/guide.md](docs/guide.md); Vietnamese: [docs/huong-dan-su-dung.md](docs/huong-dan-su-dung.md)).
 
 Open Claude Code in **any folder** with your videos and describe what you want, for example:
 

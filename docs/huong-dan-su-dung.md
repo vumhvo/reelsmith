@@ -7,6 +7,8 @@ Tài liệu này viết cho **hai kiểu người đọc**:
 - **Bạn chưa từng edit video**: đọc theo thứ tự từ trên xuống. Mục [Thuật ngữ](#thuat-ngu) giải thích mọi từ chuyên môn bằng lời thường. Đọc tới mục [Bắt đầu nhanh](#bat-dau-nhanh) là bạn đã làm được video đầu tiên.
 - **Bạn đã quen Premiere, CapCut, DaVinci…**: nhảy thẳng tới [Cách Reelsmith hoạt động](#cach-hoat-dong), [Trình dựng trên trình duyệt](#trinh-dung) và [EDL](#edl).
 
+Read in English: [guide.md](guide.md).
+
 ---
 
 <a id="muc-luc"></a>
